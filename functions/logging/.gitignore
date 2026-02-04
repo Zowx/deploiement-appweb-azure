@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local settings (contains secrets)
+local.settings.json
+
+# Azure Functions
+.funcignore
+bin/
+obj/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

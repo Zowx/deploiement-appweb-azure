@@ -1,4 +1,5 @@
 import { getSecret, getConfig, getAllConfig } from "./config.js";
+import { loggingService } from "./logging.js";
 
 export interface AppConfig {
   // From Key Vault (secrets)
@@ -84,6 +85,14 @@ export async function loadConfiguration(): Promise<AppConfig> {
     console.log(
       `   Logging: ${cachedConfig.featureLoggingEnabled ? "enabled" : "disabled"}`,
     );
+
+    // Configure Azure Function logging if available
+    const functionUrl = process.env.AZURE_FUNCTION_URL;
+    const functionKey = process.env.AZURE_FUNCTION_KEY;
+    if (functionUrl && functionKey && cachedConfig.featureLoggingEnabled) {
+      loggingService.configure(functionUrl, functionKey);
+      console.log("📊 Azure Function logging configured");
+    }
 
     return cachedConfig;
   } catch (error) {

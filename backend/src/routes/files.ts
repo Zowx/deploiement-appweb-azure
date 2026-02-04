@@ -16,6 +16,7 @@ import {
   getAppConfig,
   isAzureStorageConfigured,
 } from "../services/bootstrap.js";
+import { loggingService } from "../services/logging.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -52,13 +53,6 @@ function validateFile(
   return { valid: true };
 }
 
-function logActivity(action: string, details: Record<string, unknown>): void {
-  const config = getAppConfig();
-  if (config.featureLoggingEnabled) {
-    console.log(`[${new Date().toISOString()}] ${action}:`, details);
-  }
-}
-
 // GET all files
 router.get("/", async (_req: Request, res: Response) => {
   try {
@@ -70,7 +64,7 @@ router.get("/", async (_req: Request, res: Response) => {
 
     // Azure mode: return from database
     const files = await prisma.file.findMany();
-    logActivity("LIST_FILES", { count: files.length });
+    loggingService.logList(files.length, _req);
     res.json(files);
   } catch (error) {
     console.error("Error fetching files:", error);
@@ -101,7 +95,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    logActivity("GET_FILE", { id: req.params.id, name: file.name });
+    loggingService.logDownload(file.id, file.name, req);
     res.json(file);
   } catch (error) {
     console.error("Error fetching file:", error);
@@ -145,12 +139,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       },
     });
 
-    logActivity("UPLOAD_FILE", {
-      id: file.id,
-      name: originalname,
-      size,
-      mimeType: mimetype,
-    });
+    loggingService.logUpload(file.id, originalname, size, req);
 
     res.status(201).json(file);
   } catch (error) {
@@ -192,7 +181,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
       where: { id: req.params.id },
     });
 
-    logActivity("DELETE_FILE", { id: req.params.id, name: file.name });
+    loggingService.logDelete(file.id, file.name, req);
 
     res.status(204).send();
   } catch (error) {
