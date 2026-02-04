@@ -1,5 +1,5 @@
 # Build stage
-FROM --platform=linux/amd64 node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY . .
 RUN npm run build
 
 # Production stage - using node + serve
-FROM --platform=linux/amd64 node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 
@@ -32,5 +32,5 @@ ENV PORT=8080
 
 EXPOSE 8080
 
-# Start serve on port 8080 (non-privileged port)
+# Start serve on port 8080
 CMD ["serve", "-s", "dist", "-l", "8080"]
