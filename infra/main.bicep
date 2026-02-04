@@ -19,6 +19,7 @@ param dbAdminPassword string
 var resourceGroupName = 'rg-${projectName}-${environment}'
 var keyVaultName = 'kv-${projectName}-${environment}'
 var appConfigEndpoint = 'https://appcs-${projectName}-${environment}.azconfig.io'
+var functionAppUrl = 'https://func-${projectName}-logging-${environment}.azurewebsites.net'
 
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: resourceGroupName
@@ -58,6 +59,7 @@ module appService 'modules/appservice.bicep' = {
     appConfigEndpoint: appConfigEndpoint
     storageAccountName: storage.outputs.storageAccountName
     databaseServerFqdn: database.outputs.serverFqdn
+    functionAppUrl: functionAppUrl
   }
 }
 
@@ -96,6 +98,21 @@ module appConfig 'modules/appconfig.bicep' = {
   ]
 }
 
+module functionApp 'modules/functionapp.bicep' = {
+  name: 'functionapp-deployment'
+  scope: rg
+  params: {
+    location: location
+    environment: environment
+    projectName: projectName
+    storageAccountName: storage.outputs.storageAccountName
+    storageConnectionString: storage.outputs.storageConnectionString
+  }
+  dependsOn: [
+    storage
+  ]
+}
+
 output resourceGroupName string = rg.name
 output frontendUrl string = appService.outputs.frontendAppUrl
 output backendUrl string = appService.outputs.backendAppUrl
@@ -103,3 +120,4 @@ output storageAccountName string = storage.outputs.storageAccountName
 output keyVaultName string = keyVault.outputs.keyVaultName
 output appConfigEndpoint string = appConfig.outputs.configStoreEndpoint
 output databaseServer string = database.outputs.serverFqdn
+output functionAppUrl string = functionApp.outputs.functionAppUrl

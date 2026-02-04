@@ -22,6 +22,9 @@ param storageAccountName string = ''
 @description('Database server FQDN')
 param databaseServerFqdn string = ''
 
+@description('Azure Function URL for logging')
+param functionAppUrl string = ''
+
 var appServicePlanName = 'asp-${projectName}-${environment}'
 var frontendAppName = 'app-${projectName}-frontend-${environment}'
 var backendAppName = 'app-${projectName}-backend-${environment}'
@@ -102,6 +105,10 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
         {
           name: 'DATABASE_SERVER'
           value: databaseServerFqdn
+        }
+        {
+          name: 'AZURE_FUNCTION_URL'
+          value: functionAppUrl
         }
       ]
     }
