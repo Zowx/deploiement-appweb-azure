@@ -21,6 +21,7 @@ export async function uploadFile(
   file: File,
   onProgress?: (progress: number) => void,
 ): Promise<FileData> {
+  
   const formData = new FormData();
   formData.append("file", file);
 

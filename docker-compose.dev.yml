@@ -1,63 +1,66 @@
 services:
-  # PostgreSQL Database
-  db:
-    image: postgres:15-alpine
-    container_name: cloud-azure-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: cloudazure
-      POSTGRES_PASSWORD: cloudazure123
-      POSTGRES_DB: cloudazure
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cloudazure -d cloudazure"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    # PostgreSQL Database
+    db:
+        image: postgres:15-alpine
+        container_name: cloud-azure-db
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: cloudazure
+            POSTGRES_PASSWORD: cloudazure123
+            POSTGRES_DB: cloudazure
+        ports:
+            - '5432:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U cloudazure -d cloudazure']
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
-  # Backend API (Development with hot reload)
-  backend:
-    image: node:20-alpine
-    container_name: cloud-azure-backend-dev
-    working_dir: /app
-    command: sh -c "apk add --no-cache openssl && npm install && npx prisma generate && npx prisma db push && npm run dev"
-    environment:
-      DATABASE_URL: postgresql://cloudazure:cloudazure123@db:5432/cloudazure?schema=public
-      PORT: 3001
-      NODE_ENV: development
-      AZURE_STORAGE_ACCOUNT_NAME: ""
-      AZURE_STORAGE_CONTAINER_NAME: "uploads"
-      AZURE_KEYVAULT_NAME: ""
-      AZURE_APPCONFIG_ENDPOINT: ""
-    ports:
-      - "3001:3001"
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - backend_node_modules:/app/node_modules
+    # Backend API (Development with hot reload)
+    backend:
+        image: node:20-alpine
+        container_name: cloud-azure-backend-dev
+        working_dir: /app
+        command:
+            sh -c "apk add --no-cache openssl && npm install && npx prisma generate && npx prisma db push && npm run
+            dev"
+        environment:
+            DATABASE_URL: postgresql://cloudazure:cloudazure123@db:5432/cloudazure?schema=public
+            PORT: 3001
+            NODE_ENV: development
+            AZURE_STORAGE_ACCOUNT_NAME: ''
+            AZURE_STORAGE_CONTAINER_NAME: 'uploads'
+            AZURE_KEYVAULT_NAME: ''
+            AZURE_APPCONFIG_ENDPOINT: ''
+        ports:
+            - '3001:3001'
+        depends_on:
+            db:
+                condition: service_healthy
+        volumes:
+            - ./backend:/app
+            - backend_node_modules:/app/node_modules
+            - ./backend/uploads:/app/uploads
 
-  # Frontend (Development with Vite hot reload)
-  frontend:
-    image: node:20-alpine
-    container_name: cloud-azure-frontend-dev
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    environment:
-      VITE_API_URL: http://localhost:3001/api/files
-    ports:
-      - "5173:5173"
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
+    # Frontend (Development with Vite hot reload)
+    frontend:
+        image: node:20-alpine
+        container_name: cloud-azure-frontend-dev
+        working_dir: /app
+        command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+        environment:
+            VITE_API_URL: http://localhost:3001/api/files
+        ports:
+            - '5173:5173'
+        depends_on:
+            - backend
+        volumes:
+            - ./frontend:/app
+            - frontend_node_modules:/app/node_modules
 
 volumes:
-  postgres_data:
-  backend_node_modules:
-  frontend_node_modules:
+    postgres_data:
+    backend_node_modules:
+    frontend_node_modules:
