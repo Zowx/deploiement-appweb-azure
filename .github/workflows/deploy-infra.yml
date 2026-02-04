@@ -36,6 +36,7 @@ jobs:
           scope: subscription
           region: swedencentral
           template: ./infra/main.bicep
-          parameters: ./infra/parameters/dev.bicepparam dbAdminPassword=${{ secrets.DB_ADMIN_PASSWORD }}
+          parameters: ./infra/parameters/dev.bicepparam
+          additionalArguments: -p dbAdminPassword=${{ secrets.DB_ADMIN_PASSWORD }}
           deploymentName: infra-${{ github.run_number }}
           failOnStdErr: false
