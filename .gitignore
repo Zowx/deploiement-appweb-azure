@@ -37,3 +37,6 @@ prisma/*.db
 drive-download-*/
 *.pptx
 sujet_tp_azure.pdf
+
+# Docker
+.env.docker

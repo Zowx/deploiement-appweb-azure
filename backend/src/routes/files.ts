@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
+import { PrismaClient } from "@prisma/client";
 import {
   mockUploadFile,
   mockGetFiles,
@@ -10,8 +11,6 @@ import {
 import {
   uploadFile as azureUploadFile,
   deleteFile as azureDeleteFile,
-  listFiles as azureListFiles,
-  getFileUrl,
 } from "../services/storage.js";
 import {
   getAppConfig,
@@ -20,23 +19,7 @@ import {
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
-
-// In-memory file tracking for Azure Storage (simple approach)
-const fileRegistry: Map<
-  string,
-  {
-    id: string;
-    name: string;
-    url: string;
-    size: number;
-    mimeType: string;
-    createdAt: Date;
-  }
-> = new Map();
-
-function generateId(): string {
-  return Math.random().toString(36).substring(2, 15);
-}
+const prisma = new PrismaClient();
 
 function validateFile(
   filename: string,
@@ -85,8 +68,8 @@ router.get("/", async (_req: Request, res: Response) => {
       return;
     }
 
-    // Azure mode: return from registry
-    const files = Array.from(fileRegistry.values());
+    // Azure mode: return from database
+    const files = await prisma.file.findMany();
     logActivity("LIST_FILES", { count: files.length });
     res.json(files);
   } catch (error) {
@@ -108,8 +91,11 @@ router.get("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    // Azure mode
-    const file = fileRegistry.get(req.params.id);
+    // Azure mode: fetch from database
+    const file = await prisma.file.findUnique({
+      where: { id: req.params.id },
+    });
+
     if (!file) {
       res.status(404).json({ error: "File not found" });
       return;
@@ -146,24 +132,21 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       return;
     }
 
-    // Azure mode: upload to Blob Storage
-    const id = generateId();
-    const blobName = `${id}-${originalname}`;
+    // Azure mode: upload to Blob Storage and persist to database
+    const blobName = `${Date.now()}-${originalname}`;
     const url = await azureUploadFile(blobName, buffer, mimetype);
 
-    const file = {
-      id,
-      name: originalname,
-      url,
-      size,
-      mimeType: mimetype,
-      createdAt: new Date(),
-    };
-
-    fileRegistry.set(id, file);
+    const file = await prisma.file.create({
+      data: {
+        name: originalname,
+        url,
+        size,
+        mimeType: mimetype,
+      },
+    });
 
     logActivity("UPLOAD_FILE", {
-      id,
+      id: file.id,
       name: originalname,
       size,
       mimeType: mimetype,
@@ -190,17 +173,24 @@ router.delete("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    // Azure mode
-    const file = fileRegistry.get(req.params.id);
+    // Azure mode: delete from database and blob storage
+    const file = await prisma.file.findUnique({
+      where: { id: req.params.id },
+    });
+
     if (!file) {
       res.status(404).json({ error: "File not found" });
       return;
     }
 
     // Extract blob name from URL
-    const blobName = `${file.id}-${file.name}`;
+    const blobName = file.url.split("/").pop() || "";
     await azureDeleteFile(blobName);
-    fileRegistry.delete(req.params.id);
+
+    // Delete from database
+    await prisma.file.delete({
+      where: { id: req.params.id },
+    });
 
     logActivity("DELETE_FILE", { id: req.params.id, name: file.name });
 

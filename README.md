@@ -46,7 +46,50 @@ cloud-azure/
 
 ## Démarrage Local
 
-### Backend
+### Avec Docker (Recommandé)
+
+La méthode la plus simple pour lancer l'application en local :
+
+```bash
+# Mode développement (avec hot reload)
+make dev
+
+# Voir les logs
+make dev-logs
+
+# Arrêter
+make dev-stop
+```
+
+**URLs en mode développement :**
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3001
+- PostgreSQL: localhost:5432
+
+```bash
+# Mode production (containers buildés)
+make prod
+
+# Avec Nginx reverse proxy (tout sur le port 8080)
+make prod-nginx
+```
+
+**URLs en mode production :**
+- Frontend: http://localhost:3000
+- Backend: http://localhost:3001
+- App (via Nginx): http://localhost:8080
+
+**Autres commandes utiles :**
+```bash
+make help      # Voir toutes les commandes disponibles
+make clean     # Supprimer tous les containers et volumes
+make db-reset  # Réinitialiser la base de données
+make db-shell  # Ouvrir un shell PostgreSQL
+```
+
+### Sans Docker
+
+#### Backend
 
 ```bash
 cd backend
@@ -55,7 +98,7 @@ npx prisma generate
 npm run dev
 ```
 
-### Frontend
+#### Frontend
 
 ```bash
 cd frontend

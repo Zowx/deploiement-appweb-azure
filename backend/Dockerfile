@@ -25,4 +25,5 @@ ENV NODE_ENV=production
 
 EXPOSE 3001
 
-CMD ["npm", "start"]
+# Run Prisma migrations and start the app
+CMD ["sh", "-c", "npx prisma db push && npm start"]
