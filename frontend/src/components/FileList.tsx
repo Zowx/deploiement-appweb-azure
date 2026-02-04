@@ -1,4 +1,4 @@
-import { FileData, deleteFile, downloadFile } from "../api/files";
+import { FileData, deleteFile, getFullFileUrl } from "../api/files";
 import { useNavigate } from "react-router-dom";
 
 interface FileListProps {
@@ -38,14 +38,6 @@ export function FileList({ files, onFileDeleted }: FileListProps) {
     }
   };
 
-  const handleDownload = async (file: FileData) => {
-    try {
-      await downloadFile(file);
-    } catch {
-      alert("Erreur lors du téléchargement du fichier");
-    }
-  };
-
   if (files.length === 0) {
     return (
       <div className="card">
@@ -74,13 +66,14 @@ export function FileList({ files, onFileDeleted }: FileListProps) {
               >
                 Voir
               </button>
-              <button
-                onClick={() => handleDownload(file)}
+              <a
+                href={getFullFileUrl(file.url, true)}
+                download={file.name}
                 className="btn btn-secondary"
-                style={{ marginRight: "0.5rem" }}
+                style={{ marginRight: "0.5rem", textDecoration: "none" }}
               >
                 Télécharger
-              </button>
+              </a>
               <button
                 onClick={() => handleDelete(file.id)}
                 className="btn btn-danger"

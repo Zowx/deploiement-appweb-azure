@@ -105,9 +105,15 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
       return;
     }
 
-    // Set headers to display inline (especially for PDFs)
+    // Check if download is requested via query parameter
+    const forceDownload = req.query.download === 'true';
+    
+    // Set headers: inline for viewing, attachment for downloading
     res.setHeader("Content-Type", fileMetadata.mimeType);
-    res.setHeader("Content-Disposition", `inline; filename="${fileMetadata.name}"`);
+    res.setHeader(
+      "Content-Disposition", 
+      `${forceDownload ? 'attachment' : 'inline'}; filename="${fileMetadata.name}"`
+    );
     res.send(fileContent);
   } catch (error) {
     console.error("Error downloading file:", error);
@@ -132,7 +138,9 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       return;
     }
 
-    const fileName = `${Date.now()}-${originalname}`;
+    // Normalize filename: replace multiple spaces with single space
+    const normalizedName = originalname.replace(/\s+/g, ' ').trim();
+    const fileName = `${Date.now()}-${normalizedName}`;
     let url: string;
 
     if (isAzureStorageConfigured()) {
