@@ -53,6 +53,7 @@ jobs:
             backend/package.json
             backend/package-lock.json
             backend/prisma
+            backend/startup.sh
 
   deploy:
     needs: build
