@@ -1,0 +1,9 @@
+.git*
+.vscode/
+local.settings.json
+test/
+*.ts
+tsconfig.json
+.funcignore
+.gitignore
+node_modules/@types/
