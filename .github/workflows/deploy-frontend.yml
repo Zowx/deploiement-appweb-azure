@@ -48,6 +48,7 @@ jobs:
         with:
           context: ./frontend
           push: true
+          platforms: linux/amd64
           tags: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.sha }},${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:latest
           build-args: |
             VITE_API_URL=https://app-cloudazure-backend-dev.azurewebsites.net/api/files
