@@ -47,7 +47,7 @@ export function FileViewer() {
 
   const isPDF = file.mimeType === "application/pdf";
   const isImage = file.mimeType.startsWith("image/");
-  
+  const isVideo = file.mimeType.startsWith("video/");
   // URLs pour visualisation et téléchargement
   const viewUrl = getFullFileUrl(file.url, false);
   const downloadUrl = getFullFileUrl(file.url, true);
@@ -85,7 +85,16 @@ export function FileViewer() {
             className="image-viewer"
           />
         )}
-        {!isPDF && !isImage && (
+        {isVideo && (
+          <video
+            src={viewUrl}
+            controls
+            className="video-viewer"
+          >
+            Votre navigateur ne supporte pas la lecture de vidéos.
+          </video>
+        )}
+        {!isPDF && !isImage && !isVideo && (
           <div className="unsupported-file">
             <p>Aperçu non disponible pour ce type de fichier.</p>
             <a
