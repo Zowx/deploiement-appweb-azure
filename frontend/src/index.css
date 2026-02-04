@@ -81,6 +81,15 @@ h1 {
   background-color: #b71c1c;
 }
 
+.btn-secondary {
+  background-color: #757575;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #616161;
+}
+
 .file-list {
   list-style: none;
 }

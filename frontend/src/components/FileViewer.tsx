@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FileData, getFiles } from "../api/files";
+import { FileData, getFiles, getFullFileUrl } from "../api/files";
 
 export function FileViewer() {
   const { id } = useParams<{ id: string }>();
@@ -48,10 +48,9 @@ export function FileViewer() {
   const isPDF = file.mimeType === "application/pdf";
   const isImage = file.mimeType.startsWith("image/");
   
-  // Construire l'URL complète pour le backend
-  const fileUrl = file.url.startsWith('http') 
-    ? file.url 
-    : `http://localhost:3001${file.url}`;
+  // URLs pour visualisation et téléchargement
+  const viewUrl = getFullFileUrl(file.url, false);
+  const downloadUrl = getFullFileUrl(file.url, true);
 
   return (
     <div className="container">
@@ -61,7 +60,7 @@ export function FileViewer() {
         </button>
         <h2>{file.name}</h2>
         <a
-          href={fileUrl}
+          href={downloadUrl}
           download={file.name}
           className="btn btn-primary"
         >
@@ -72,7 +71,7 @@ export function FileViewer() {
       <div className="file-viewer-content">
         {isPDF && (
           <iframe
-            src={fileUrl}
+            src={viewUrl}
             title={file.name}
             className="pdf-viewer"
             width="100%"
@@ -81,7 +80,7 @@ export function FileViewer() {
         )}
         {isImage && (
           <img
-            src={fileUrl}
+            src={viewUrl}
             alt={file.name}
             className="image-viewer"
           />
@@ -90,7 +89,7 @@ export function FileViewer() {
           <div className="unsupported-file">
             <p>Aperçu non disponible pour ce type de fichier.</p>
             <a
-              href={fileUrl}
+              href={downloadUrl}
               download={file.name}
               className="btn btn-primary"
             >
