@@ -7,9 +7,6 @@ param environment string
 @description('Project name')
 param projectName string
 
-@description('Storage account name for Function App')
-param storageAccountName string
-
 @description('Storage account connection string')
 @secure()
 param storageConnectionString string

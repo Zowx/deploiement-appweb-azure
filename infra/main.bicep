@@ -17,12 +17,18 @@ param dbAdminLogin string = 'pgadmin'
 param dbAdminPassword string
 
 var resourceGroupName = 'rg-${projectName}-${environment}'
+var functionResourceGroupName = 'rg-${projectName}-func-${environment}'
 var keyVaultName = 'kv-${projectName}-${environment}'
 var appConfigEndpoint = 'https://appcs-${projectName}-${environment}.azconfig.io'
 var functionAppUrl = 'https://func-${projectName}-logging-${environment}.azurewebsites.net'
 
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: resourceGroupName
+  location: location
+}
+
+resource rgFunc 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+  name: functionResourceGroupName
   location: location
 }
 
@@ -78,9 +84,6 @@ module keyVault 'modules/keyvault.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     storageContainerName: 'uploads'
   }
-  dependsOn: [
-    appService
-  ]
 }
 
 module appConfig 'modules/appconfig.bicep' = {
@@ -93,27 +96,21 @@ module appConfig 'modules/appconfig.bicep' = {
     storageContainerName: 'uploads'
     backendPrincipalId: appService.outputs.backendPrincipalId
   }
-  dependsOn: [
-    appService
-  ]
 }
 
 module functionApp 'modules/functionapp.bicep' = {
   name: 'functionapp-deployment'
-  scope: rg
+  scope: rgFunc
   params: {
     location: location
     environment: environment
     projectName: projectName
-    storageAccountName: storage.outputs.storageAccountName
     storageConnectionString: storage.outputs.storageConnectionString
   }
-  dependsOn: [
-    storage
-  ]
 }
 
 output resourceGroupName string = rg.name
+output functionResourceGroupName string = rgFunc.name
 output frontendUrl string = appService.outputs.frontendAppUrl
 output backendUrl string = appService.outputs.backendAppUrl
 output storageAccountName string = storage.outputs.storageAccountName
