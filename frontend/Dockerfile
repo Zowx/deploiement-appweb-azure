@@ -28,9 +28,9 @@ RUN npm install -g serve
 # Copy built files
 COPY --from=builder /app/dist ./dist
 
-ENV PORT=80
+ENV PORT=8080
 
-EXPOSE 80
+EXPOSE 8080
 
-# Start serve on port 80
-CMD ["serve", "-s", "dist", "-l", "80"]
+# Start serve on port 8080 (non-privileged port)
+CMD ["serve", "-s", "dist", "-l", "8080"]
