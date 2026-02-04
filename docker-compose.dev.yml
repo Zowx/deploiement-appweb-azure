@@ -1,22 +1,22 @@
 services:
-  # PostgreSQL Database
-  db:
-    image: postgres:15-alpine
-    container_name: cloud-azure-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: cloudazure
-      POSTGRES_PASSWORD: cloudazure123
-      POSTGRES_DB: cloudazure
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cloudazure -d cloudazure"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    # PostgreSQL Database
+    db:
+        image: postgres:15-alpine
+        container_name: cloud-azure-db
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: cloudazure
+            POSTGRES_PASSWORD: cloudazure123
+            POSTGRES_DB: cloudazure
+        ports:
+            - '5432:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U cloudazure -d cloudazure']
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
   # Backend API (Development with hot reload)
   backend:
@@ -41,23 +41,23 @@ services:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
 
-  # Frontend (Development with Vite hot reload)
-  frontend:
-    image: node:20-alpine
-    container_name: cloud-azure-frontend-dev
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    environment:
-      VITE_API_URL: http://localhost:3001/api/files
-    ports:
-      - "5173:5173"
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
+    # Frontend (Development with Vite hot reload)
+    frontend:
+        image: node:20-alpine
+        container_name: cloud-azure-frontend-dev
+        working_dir: /app
+        command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+        environment:
+            VITE_API_URL: http://localhost:3001/api/files
+        ports:
+            - '5173:5173'
+        depends_on:
+            - backend
+        volumes:
+            - ./frontend:/app
+            - frontend_node_modules:/app/node_modules
 
 volumes:
-  postgres_data:
-  backend_node_modules:
-  frontend_node_modules:
+    postgres_data:
+    backend_node_modules:
+    frontend_node_modules:

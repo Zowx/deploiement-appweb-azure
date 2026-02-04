@@ -10,7 +10,7 @@ Développer et déployer une application web complète suivant une architecture 
 
 ### Frontend
 - **Technologie** : React (Vite)
-- **Justification** : Écosystème mature, performance, facilité de déploiement sur Azure App Service
+- **Justification** : Écosystème mature, performant, facilité de déploiement sur Azure App Service
 
 ### Backend
 - **Technologie** : Node.js (Express + TypeScript)
