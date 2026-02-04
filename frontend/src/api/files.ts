@@ -7,7 +7,7 @@ export interface FileData {
   createdAt: string;
 }
 
-const API_URL = "/api/files";
+const API_URL = import.meta.env.VITE_API_URL || "/api/files";
 
 export async function getFiles(): Promise<FileData[]> {
   const response = await fetch(API_URL);

@@ -13,6 +13,17 @@ param tenantId string = subscription().tenantId
 @description('Principal IDs that need access to Key Vault')
 param accessPrincipalIds array = []
 
+// === Secrets to store ===
+@secure()
+@description('Database connection string')
+param databaseConnectionString string = ''
+
+@description('Storage account name')
+param storageAccountName string = ''
+
+@description('Storage container name')
+param storageContainerName string = 'uploads'
+
 var keyVaultName = 'kv-${projectName}-${environment}'
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
@@ -38,6 +49,31 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
         ]
       }
     }]
+  }
+}
+
+// === Secrets ===
+resource secretDatabaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(databaseConnectionString)) {
+  parent: keyVault
+  name: 'database-connection-string'
+  properties: {
+    value: databaseConnectionString
+  }
+}
+
+resource secretStorageAccount 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(storageAccountName)) {
+  parent: keyVault
+  name: 'storage-account-name'
+  properties: {
+    value: storageAccountName
+  }
+}
+
+resource secretStorageContainer 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'storage-container-name'
+  properties: {
+    value: storageContainerName
   }
 }
 

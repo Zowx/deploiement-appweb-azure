@@ -10,6 +10,18 @@ param projectName string
 @description('App Service Plan SKU')
 param skuName string = 'B1'
 
+@description('Key Vault name for secrets')
+param keyVaultName string = ''
+
+@description('App Configuration endpoint')
+param appConfigEndpoint string = ''
+
+@description('Storage account name')
+param storageAccountName string = ''
+
+@description('Database server FQDN')
+param databaseServerFqdn string = ''
+
 var appServicePlanName = 'asp-${projectName}-${environment}'
 var frontendAppName = 'app-${projectName}-frontend-${environment}'
 var backendAppName = 'app-${projectName}-backend-${environment}'
@@ -42,6 +54,10 @@ resource frontendApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
           value: '~20'
         }
+        {
+          name: 'VITE_API_URL'
+          value: 'https://${backendAppName}.azurewebsites.net/api/files'
+        }
       ]
     }
     httpsOnly: true
@@ -62,6 +78,30 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
           value: '~20'
+        }
+        {
+          name: 'NODE_ENV'
+          value: environment == 'prod' ? 'production' : 'development'
+        }
+        {
+          name: 'AZURE_KEYVAULT_NAME'
+          value: keyVaultName
+        }
+        {
+          name: 'AZURE_APPCONFIG_ENDPOINT'
+          value: appConfigEndpoint
+        }
+        {
+          name: 'AZURE_STORAGE_ACCOUNT_NAME'
+          value: storageAccountName
+        }
+        {
+          name: 'AZURE_STORAGE_CONTAINER_NAME'
+          value: 'uploads'
+        }
+        {
+          name: 'DATABASE_SERVER'
+          value: databaseServerFqdn
         }
       ]
     }

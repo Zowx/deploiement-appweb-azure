@@ -1,7 +1,7 @@
 targetScope = 'subscription'
 
 @description('Location for all resources')
-param location string = 'westeurope'
+param location string = 'swedencentral'
 
 @description('Environment name (dev, prod)')
 param environment string = 'dev'
@@ -17,20 +17,12 @@ param dbAdminLogin string = 'pgadmin'
 param dbAdminPassword string
 
 var resourceGroupName = 'rg-${projectName}-${environment}'
+var keyVaultName = 'kv-${projectName}-${environment}'
+var appConfigEndpoint = 'https://appcs-${projectName}-${environment}.azconfig.io'
 
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: resourceGroupName
   location: location
-}
-
-module appService 'modules/appservice.bicep' = {
-  name: 'appservice-deployment'
-  scope: rg
-  params: {
-    location: location
-    environment: environment
-    projectName: projectName
-  }
 }
 
 module database 'modules/database.bicep' = {
@@ -55,6 +47,20 @@ module storage 'modules/storage.bicep' = {
   }
 }
 
+module appService 'modules/appservice.bicep' = {
+  name: 'appservice-deployment'
+  scope: rg
+  params: {
+    location: location
+    environment: environment
+    projectName: projectName
+    keyVaultName: keyVaultName
+    appConfigEndpoint: appConfigEndpoint
+    storageAccountName: storage.outputs.storageAccountName
+    databaseServerFqdn: database.outputs.serverFqdn
+  }
+}
+
 module keyVault 'modules/keyvault.bicep' = {
   name: 'keyvault-deployment'
   scope: rg
@@ -66,7 +72,13 @@ module keyVault 'modules/keyvault.bicep' = {
       appService.outputs.frontendPrincipalId
       appService.outputs.backendPrincipalId
     ]
+    databaseConnectionString: database.outputs.connectionString
+    storageAccountName: storage.outputs.storageAccountName
+    storageContainerName: 'uploads'
   }
+  dependsOn: [
+    appService
+  ]
 }
 
 module appConfig 'modules/appconfig.bicep' = {
@@ -76,7 +88,12 @@ module appConfig 'modules/appconfig.bicep' = {
     location: location
     environment: environment
     projectName: projectName
+    storageContainerName: 'uploads'
+    backendPrincipalId: appService.outputs.backendPrincipalId
   }
+  dependsOn: [
+    appService
+  ]
 }
 
 output resourceGroupName string = rg.name
