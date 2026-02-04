@@ -42,5 +42,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
-# Run Prisma migrations and start the app
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/index.js"]
+# Start the app directly (prisma db push done via Azure startup command)
+CMD ["node", "dist/index.js"]
