@@ -1,4 +1,5 @@
 import { FileData, deleteFile } from "../api/files";
+import { useNavigate } from "react-router-dom";
 
 interface FileListProps {
   files: FileData[];
@@ -22,6 +23,8 @@ function formatDate(dateString: string): string {
 }
 
 export function FileList({ files, onFileDeleted }: FileListProps) {
+  const navigate = useNavigate();
+
   const handleDelete = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce fichier ?")) {
       return;
@@ -56,15 +59,13 @@ export function FileList({ files, onFileDeleted }: FileListProps) {
               </div>
             </div>
             <div className="file-actions">
-              <a
-                href={file.url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => navigate(`/file/${file.id}`)}
                 className="btn btn-primary"
                 style={{ marginRight: "0.5rem" }}
               >
                 Voir
-              </a>
+              </button>
               <button
                 onClick={() => handleDelete(file.id)}
                 className="btn btn-danger"
