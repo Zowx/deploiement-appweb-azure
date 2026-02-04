@@ -3,11 +3,10 @@ import multer from "multer";
 import path from "path";
 import { PrismaClient } from "@prisma/client";
 import {
-  mockUploadFile,
-  mockGetFiles,
-  mockGetFile,
-  mockDeleteFile,
-} from "../services/mock-storage.js";
+  saveFileLocally,
+  deleteFileLocally,
+  getFileLocally,
+} from "../services/local-storage.js";
 import {
   uploadFile as azureUploadFile,
   deleteFile as azureDeleteFile,
@@ -62,13 +61,6 @@ function logActivity(action: string, details: Record<string, unknown>): void {
 // GET all files
 router.get("/", async (_req: Request, res: Response) => {
   try {
-    if (!isAzureStorageConfigured()) {
-      const files = await mockGetFiles();
-      res.json(files);
-      return;
-    }
-
-    // Azure mode: return from database
     const files = await prisma.file.findMany();
     logActivity("LIST_FILES", { count: files.length });
     res.json(files);
@@ -81,17 +73,6 @@ router.get("/", async (_req: Request, res: Response) => {
 // GET single file
 router.get("/:id", async (req: Request, res: Response) => {
   try {
-    if (!isAzureStorageConfigured()) {
-      const file = await mockGetFile(req.params.id);
-      if (!file) {
-        res.status(404).json({ error: "File not found" });
-        return;
-      }
-      res.json(file);
-      return;
-    }
-
-    // Azure mode: fetch from database
     const file = await prisma.file.findUnique({
       where: { id: req.params.id },
     });
@@ -106,6 +87,37 @@ router.get("/:id", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching file:", error);
     res.status(500).json({ error: "Failed to fetch file" });
+  }
+});
+
+// GET file by filename for download/viewing
+router.get("/download/:fileName", async (req: Request, res: Response) => {
+  try {
+    const { fileName } = req.params;
+    const fileContent = await getFileLocally(fileName);
+    
+    if (!fileContent) {
+      res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    // Find file metadata in database
+    const fileMetadata = await prisma.file.findFirst({
+      where: { url: { contains: fileName } },
+    });
+
+    if (!fileMetadata) {
+      res.status(404).json({ error: "File metadata not found" });
+      return;
+    }
+
+    // Set headers to display inline (especially for PDFs)
+    res.setHeader("Content-Type", fileMetadata.mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${fileMetadata.name}"`);
+    res.send(fileContent);
+  } catch (error) {
+    console.error("Error downloading file:", error);
+    res.status(500).json({ error: "Failed to download file" });
   }
 });
 
@@ -126,16 +138,18 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       return;
     }
 
-    if (!isAzureStorageConfigured()) {
-      const file = await mockUploadFile(originalname, buffer, mimetype, size);
-      res.status(201).json(file);
-      return;
+    const fileName = `${Date.now()}-${originalname}`;
+    let url: string;
+
+    if (isAzureStorageConfigured()) {
+      // Azure mode: upload to Blob Storage
+      url = await azureUploadFile(fileName, buffer, mimetype);
+    } else {
+      // Local mode: save to local storage
+      url = await saveFileLocally(fileName, buffer);
     }
 
-    // Azure mode: upload to Blob Storage and persist to database
-    const blobName = `${Date.now()}-${originalname}`;
-    const url = await azureUploadFile(blobName, buffer, mimetype);
-
+    // Persist to database
     const file = await prisma.file.create({
       data: {
         name: originalname,
@@ -162,18 +176,6 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 // DELETE file
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
-    if (!isAzureStorageConfigured()) {
-      const file = await mockGetFile(req.params.id);
-      if (!file) {
-        res.status(404).json({ error: "File not found" });
-        return;
-      }
-      await mockDeleteFile(req.params.id);
-      res.status(204).send();
-      return;
-    }
-
-    // Azure mode: delete from database and blob storage
     const file = await prisma.file.findUnique({
       where: { id: req.params.id },
     });
@@ -183,9 +185,16 @@ router.delete("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    // Extract blob name from URL
-    const blobName = file.url.split("/").pop() || "";
-    await azureDeleteFile(blobName);
+    // Extract file name from URL
+    const fileName = file.url.split("/").pop() || "";
+
+    if (isAzureStorageConfigured()) {
+      // Delete from Azure Blob Storage
+      await azureDeleteFile(fileName);
+    } else {
+      // Delete from local storage
+      await deleteFileLocally(fileName);
+    }
 
     // Delete from database
     await prisma.file.delete({
