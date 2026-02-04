@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../services/prisma.js";
 import {
   saveFileLocally,
   deleteFileLocally,
@@ -19,7 +19,6 @@ import { loggingService } from "../services/logging.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const prisma = new PrismaClient();
 
 function validateFile(
   filename: string,
