@@ -907,6 +907,14 @@ location / {
 
 **Solution :** Accepté comme compromis coût/performance pour l'environnement de dev. En production, un plan Premium serait envisagé.
 
+### 8. Autorisation des consultations des fichiers
+
+**Problème :** Blocage du visionnement des fichiers.
+
+**Cause :** AllowBlobPublicAccess set a false dans le storage.bicep pour la ressource StorageAccount.
+
+**Solution :** Passage de la variable à true.
+
 ---
 
 ## Estimation des coûts
