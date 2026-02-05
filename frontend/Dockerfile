@@ -17,15 +17,18 @@ RUN npm ci --prefer-offline
 COPY . .
 RUN npm run build
 
-# Production stage - using nginx
-FROM nginx:alpine AS runner
+# Production stage - using serve
+FROM node:20-alpine AS runner
 
-# Copy nginx config first
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-# Copy built files to nginx
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Install serve
+RUN npm install -g serve
+
+# Copy built files
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+# Start serve on port 8080
+CMD ["serve", "-s", "dist", "-l", "8080"]
