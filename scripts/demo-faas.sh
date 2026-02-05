@@ -13,10 +13,25 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Configuration (à adapter si besoin)
-FUNCTION_URL="${AZURE_FUNCTION_URL:-https://func-cloudazure-logging-dev.azurewebsites.net}"
+# Charger le .env du backend (contient les secrets)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../backend/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    export $(grep -E "^AZURE_FUNCTION_" "$ENV_FILE" | xargs)
+fi
+
+# Configuration (depuis .env ou variables d'environnement)
+FUNCTION_URL="${AZURE_FUNCTION_URL:-}"
 FUNCTION_KEY="${AZURE_FUNCTION_KEY:-}"
 BACKEND_URL="${BACKEND_URL:-http://localhost:3001}"
+
+# Vérifier que les variables sont configurées
+if [ -z "$FUNCTION_URL" ] || [ -z "$FUNCTION_KEY" ]; then
+    echo -e "${RED}Erreur: Variables AZURE_FUNCTION_URL et AZURE_FUNCTION_KEY non configurées${NC}"
+    echo "Configurez-les dans backend/.env"
+    exit 1
+fi
 
 # Header
 show_header() {

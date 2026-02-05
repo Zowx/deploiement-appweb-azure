@@ -8,6 +8,7 @@ const ACTION_LABELS: Record<
 > = {
   upload: { label: "Upload", emoji: "📤", color: "#4caf50" },
   download: { label: "Download", emoji: "📥", color: "#2196f3" },
+  view: { label: "View", emoji: "👁️", color: "#9c27b0" },
   delete: { label: "Delete", emoji: "🗑️", color: "#f44336" },
   list: { label: "List", emoji: "📋", color: "#9e9e9e" },
   error: { label: "Error", emoji: "❌", color: "#d32f2f" },

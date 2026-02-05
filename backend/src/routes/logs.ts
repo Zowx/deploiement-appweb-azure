@@ -119,6 +119,7 @@ router.get("/stats", async (req: Request, res: Response) => {
       byAction: {
         upload: logs.filter((l: any) => l.action === "upload").length,
         download: logs.filter((l: any) => l.action === "download").length,
+        view: logs.filter((l: any) => l.action === "view").length,
         delete: logs.filter((l: any) => l.action === "delete").length,
         list: logs.filter((l: any) => l.action === "list").length,
         error: logs.filter((l: any) => l.action === "error").length,

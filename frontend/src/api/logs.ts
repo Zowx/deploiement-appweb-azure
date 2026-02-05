@@ -1,6 +1,6 @@
 export interface LogEntry {
   id: string;
-  action: "upload" | "download" | "delete" | "list" | "error";
+  action: "upload" | "download" | "view" | "delete" | "list" | "error";
   fileId?: string;
   fileName?: string;
   fileSize?: number;
@@ -22,6 +22,7 @@ export interface LogStats {
   byAction: {
     upload: number;
     download: number;
+    view: number;
     delete: number;
     list: number;
     error: number;

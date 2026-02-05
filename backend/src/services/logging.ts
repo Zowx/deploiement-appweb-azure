@@ -1,5 +1,5 @@
 interface ActivityLog {
-  action: "upload" | "download" | "delete" | "list" | "error" | string;
+  action: "upload" | "download" | "view" | "delete" | "list" | "error" | string;
   fileId?: string;
   fileName?: string;
   fileSize?: number;
@@ -41,7 +41,7 @@ class LoggingService {
         timestamp: new Date().toISOString(),
       };
 
-      const url = `${this.functionUrl}/api/logActivity?code=${this.functionKey}`;
+      const url = `${this.functionUrl}/api/logactivity?code=${this.functionKey}`;
 
       const response = await fetch(url, {
         method: "POST",
@@ -87,6 +87,18 @@ class LoggingService {
         fileId,
         fileName,
         details: `File downloaded: ${fileName}`,
+      },
+      req,
+    );
+  }
+
+  async logView(fileId: string, fileName: string, req?: any) {
+    await this.logActivity(
+      {
+        action: "view",
+        fileId,
+        fileName,
+        details: `File viewed: ${fileName}`,
       },
       req,
     );

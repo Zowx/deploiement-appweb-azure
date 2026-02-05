@@ -122,6 +122,13 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
     // Check if download is requested via query parameter
     const forceDownload = req.query.download === "true";
 
+    // Log the action (view or download)
+    if (forceDownload) {
+      loggingService.logDownload(fileMetadata.id, fileMetadata.name, req);
+    } else {
+      loggingService.logView(fileMetadata.id, fileMetadata.name, req);
+    }
+
     // Set headers: inline for viewing, attachment for downloading
     res.setHeader("Content-Type", fileMetadata.mimeType);
     res.setHeader(
