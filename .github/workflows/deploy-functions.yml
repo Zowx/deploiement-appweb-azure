@@ -19,8 +19,9 @@ env:
   NODE_VERSION: "20.x"
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,34 +33,9 @@ jobs:
           cache: "npm"
           cache-dependency-path: functions/logging/package-lock.json
 
-      - name: Install dependencies
+      - name: Install and build
         working-directory: functions/logging
-        run: npm ci
-
-      - name: Build
-        working-directory: functions/logging
-        run: npm run build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: functions
-          path: |
-            functions/logging/dist
-            functions/logging/node_modules
-            functions/logging/package.json
-            functions/logging/host.json
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: functions
-          path: functions/logging
+        run: npm ci && npm run build
 
       - name: Azure Login
         uses: azure/login@v2
