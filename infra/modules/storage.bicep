@@ -47,4 +47,4 @@ output storageAccountId string = storageAccount.id
 output containerName string = blobContainer.name
 output blobEndpoint string = storageAccount.properties.primaryEndpoints.blob
 @description('Storage connection string for internal Azure services (Functions, etc.)')
-output storageConnectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+output storageConnectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
