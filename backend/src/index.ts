@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import filesRouter from "./routes/files.js";
+import logsRouter from "./routes/logs.js";
 import { loadConfiguration, getAppConfig } from "./services/bootstrap.js";
 
 dotenv.config();
@@ -40,6 +41,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/files", filesRouter);
+app.use("/api/logs", logsRouter);
 
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, "../public")));

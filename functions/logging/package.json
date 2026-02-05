@@ -2,7 +2,7 @@
   "name": "logging-function",
   "version": "1.0.0",
   "description": "Azure Function for logging application events",
-  "main": "dist/src/functions/*.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
