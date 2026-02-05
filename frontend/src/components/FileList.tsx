@@ -2,7 +2,7 @@ import { FileData, deleteFile, getFullFileUrl, moveFile } from "../api/files";
 import { FolderData, deleteFolder, moveFolder } from "../api/folders";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { ArrowUp, ArrowDown, Eye, Download, Trash2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Eye, Download, Trash2, FolderOpen } from "lucide-react";
 import { useFileFilters } from "../hooks/useFileFilters";
 import { FolderManager } from "./FolderManager";
 
@@ -524,6 +524,16 @@ export function FileList({
           <button 
             onClick={onNavigateUp} 
             className={`btn btn-secondary ${dragOverFolderId === 'parent' ? 'drag-over' : ''}`}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              fontSize: '1.5rem', 
+              width: '3rem', 
+              height: '3rem', 
+              padding: '0.5rem',
+              backgroundColor: '#ffffff',
+            }}
             onDragOver={(e) => handleDragOver(e, 'parent')}
             onDragLeave={handleDragLeave}
             onDrop={(e) => {
@@ -534,11 +544,9 @@ export function FileList({
                 handleDrop(e, parentFolderId);
               }
             }}
+            title="Dossier parent"
           >
-            ⬆️ Dossier parent
-            {dragOverFolderId === 'parent' && (
-              <span style={{ marginLeft: "0.5rem" }}>📥</span>
-            )}
+            ⬅️
           </button>
         </div>
       )}
@@ -777,9 +785,10 @@ export function FileList({
                     if (onFolderClick) onFolderClick(folder.id);
                   }}
                   className="btn btn-primary"
-                  style={{ marginRight: "0.5rem" }}
+                  style={{ marginRight: "0.5rem", padding: "0.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  title="Ouvrir le dossier"
                 >
-                  Ouvrir
+                  <FolderOpen size={16} />
                 </button>
                 <button
                   onClick={(e) => {
@@ -787,8 +796,10 @@ export function FileList({
                     handleDeleteFolder(folder.id, folder.name);
                   }}
                   className="btn btn-danger"
+                  style={{ padding: "0.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  title="Supprimer le dossier"
                 >
-                  Supprimer
+                  <Trash2 size={16} />
                 </button>
               </div>
             </li>
