@@ -9,6 +9,7 @@ local.settings.json
 
 # Azure Functions
 .funcignore
+.azurite/
 bin/
 obj/
 
