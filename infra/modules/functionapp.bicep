@@ -10,6 +10,9 @@ param projectName string
 @description('Application Insights Instrumentation Key (optional)')
 param appInsightsInstrumentationKey string = ''
 
+@description('Storage connection string for Table Storage (logs)')
+param storageConnectionString string
+
 var functionAppName = 'func-${projectName}-logging-${environment}'
 var hostingPlanName = 'asp-${projectName}-func-${environment}'
 var functionStorageAccountName = 'stfunc${replace(projectName, '-', '')}${environment}'
@@ -84,6 +87,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
           value: appInsightsInstrumentationKey
+        }
+        {
+          name: 'STORAGE_CONNECTION_STRING'
+          value: storageConnectionString
         }
       ]
     }

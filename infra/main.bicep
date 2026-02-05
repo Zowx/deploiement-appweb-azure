@@ -108,6 +108,7 @@ module functionApp 'modules/functionapp.bicep' = {
     location: location
     environment: environment
     projectName: projectName
+    storageConnectionString: storage.outputs.storageConnectionString
   }
 }
 
