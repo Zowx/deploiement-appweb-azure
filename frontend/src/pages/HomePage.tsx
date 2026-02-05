@@ -138,16 +138,16 @@ export function HomePage() {
         </Link>
       </div>
 
-      <FolderManager
-        currentFolderId={currentFolderId}
-        onFolderCreated={handleFolderCreated}
-        onRefresh={() => fetchContents(currentFolderId)}
-      />
-
       <FileUpload
         onUploadComplete={handleUploadComplete}
         currentFolderId={currentFolderId}
         currentPath={currentPath}
+      />
+
+      <FolderManager
+        currentFolderId={currentFolderId}
+        onFolderCreated={handleFolderCreated}
+        onRefresh={() => fetchContents(currentFolderId)}
       />
 
       {error && <div className="error">{error}</div>}
