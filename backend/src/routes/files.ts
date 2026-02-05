@@ -10,6 +10,7 @@ import {
 import {
   uploadFile as azureUploadFile,
   deleteFile as azureDeleteFile,
+  downloadFileContent as azureDownloadFile,
 } from "../services/storage.js";
 import {
   getAppConfig,
@@ -87,12 +88,6 @@ router.get("/:id", async (req: Request, res: Response) => {
 router.get("/download/:fileName", async (req: Request, res: Response) => {
   try {
     const { fileName } = req.params;
-    const fileContent = await getFileLocally(fileName);
-    
-    if (!fileContent) {
-      res.status(404).json({ error: "File not found" });
-      return;
-    }
 
     // Find file metadata in database
     const fileMetadata = await prisma.file.findFirst({
@@ -104,14 +99,27 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
       return;
     }
 
+    // Get file content from appropriate storage
+    let fileContent: Buffer | null;
+    if (isAzureStorageConfigured()) {
+      fileContent = await azureDownloadFile(fileName);
+    } else {
+      fileContent = await getFileLocally(fileName);
+    }
+
+    if (!fileContent) {
+      res.status(404).json({ error: "File not found in storage" });
+      return;
+    }
+
     // Check if download is requested via query parameter
-    const forceDownload = req.query.download === 'true';
-    
+    const forceDownload = req.query.download === "true";
+
     // Set headers: inline for viewing, attachment for downloading
     res.setHeader("Content-Type", fileMetadata.mimeType);
     res.setHeader(
-      "Content-Disposition", 
-      `${forceDownload ? 'attachment' : 'inline'}; filename="${fileMetadata.name}"`
+      "Content-Disposition",
+      `${forceDownload ? "attachment" : "inline"}; filename="${fileMetadata.name}"`,
     );
     res.send(fileContent);
   } catch (error) {
@@ -138,13 +146,15 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
     }
 
     // Normalize filename: replace multiple spaces with single space
-    const normalizedName = originalname.replace(/\s+/g, ' ').trim();
+    const normalizedName = originalname.replace(/\s+/g, " ").trim();
     const fileName = `${Date.now()}-${normalizedName}`;
     let url: string;
 
     if (isAzureStorageConfigured()) {
       // Azure mode: upload to Blob Storage
-      url = await azureUploadFile(fileName, buffer, mimetype);
+      await azureUploadFile(fileName, buffer, mimetype);
+      // Store relative URL to proxy through backend (avoids public access issues)
+      url = `/api/files/download/${fileName}`;
     } else {
       // Local mode: save to local storage
       url = await saveFileLocally(fileName, buffer);

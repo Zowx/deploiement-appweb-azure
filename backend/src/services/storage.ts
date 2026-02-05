@@ -71,3 +71,31 @@ export async function fileExists(fileName: string): Promise<boolean> {
   const blockBlobClient = client.getBlockBlobClient(fileName);
   return blockBlobClient.exists();
 }
+
+export async function downloadFileContent(
+  fileName: string,
+): Promise<Buffer | null> {
+  try {
+    const client = getContainerClient();
+    const blockBlobClient = client.getBlockBlobClient(fileName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download(0);
+    const chunks: Buffer[] = [];
+
+    if (downloadResponse.readableStreamBody) {
+      for await (const chunk of downloadResponse.readableStreamBody) {
+        chunks.push(Buffer.from(chunk));
+      }
+    }
+
+    return Buffer.concat(chunks);
+  } catch (error) {
+    console.error("Error downloading file from Azure:", error);
+    return null;
+  }
+}
