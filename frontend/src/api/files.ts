@@ -11,17 +11,22 @@ const API_URL = import.meta.env.VITE_API_URL || "/api/files";
 
 // Get the base URL for the API (handles both dev and production)
 function getApiBaseUrl(): string {
-  // In production, use the same origin
-  if (import.meta.env.PROD) {
-    return window.location.origin;
+  // Use VITE_API_URL if set, extracting the base URL
+  if (import.meta.env.VITE_API_URL) {
+    // Extract base URL from full API URL (e.g., https://backend.com/api/files -> https://backend.com)
+    const url = new URL(import.meta.env.VITE_API_URL);
+    return url.origin;
   }
   // In development, use the backend URL or default to localhost:3001
   return import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 }
 
 // Convert relative file URL to absolute URL
-export function getFullFileUrl(fileUrl: string, download: boolean = false): string {
-  if (fileUrl.startsWith('http')) {
+export function getFullFileUrl(
+  fileUrl: string,
+  download: boolean = false,
+): string {
+  if (fileUrl.startsWith("http")) {
     return download ? `${fileUrl}?download=true` : fileUrl;
   }
   const fullUrl = `${getApiBaseUrl()}${fileUrl}`;
@@ -40,7 +45,6 @@ export async function uploadFile(
   file: File,
   onProgress?: (progress: number) => void,
 ): Promise<FileData> {
-  
   const formData = new FormData();
   formData.append("file", file);
 
