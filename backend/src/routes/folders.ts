@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "../services/prisma.js";
 import { loggingService } from "../services/logging.js";
+import { sseService } from "../services/sse.js";
 
 const router = Router();
 
@@ -185,7 +186,9 @@ router.post("/", async (req: Request, res: Response) => {
     });
 
     if (existingFolder) {
-      res.status(409).json({ error: "A folder with this name already exists in this location" });
+      res.status(409).json({
+        error: "A folder with this name already exists in this location",
+      });
       return;
     }
 
@@ -205,7 +208,12 @@ router.post("/", async (req: Request, res: Response) => {
       },
     });
 
-    loggingService.logCustom("folder_created", { folderId: folder.id, folderName: folder.name, path: folder.path }, req);
+    loggingService.logCustom(
+      "folder_created",
+      { folderId: folder.id, folderName: folder.name, path: folder.path },
+      req,
+    );
+    sseService.broadcast("folder:added", folder, parentId || null);
 
     res.status(201).json(folder);
   } catch (error) {
@@ -237,7 +245,8 @@ router.delete("/:id", async (req: Request, res: Response) => {
     // Check if folder has contents
     if (folder._count.files > 0 || folder._count.children > 0) {
       res.status(400).json({
-        error: "Cannot delete folder with contents. Please delete all files and subfolders first.",
+        error:
+          "Cannot delete folder with contents. Please delete all files and subfolders first.",
       });
       return;
     }
@@ -246,7 +255,12 @@ router.delete("/:id", async (req: Request, res: Response) => {
       where: { id: req.params.id },
     });
 
-    loggingService.logCustom("folder_deleted", { folderId: folder.id, folderName: folder.name }, req);
+    loggingService.logCustom(
+      "folder_deleted",
+      { folderId: folder.id, folderName: folder.name },
+      req,
+    );
+    sseService.broadcast("folder:deleted", { id: folder.id }, folder.parentId);
 
     res.json({ message: "Folder deleted successfully" });
   } catch (error) {
@@ -298,7 +312,9 @@ router.patch("/:id", async (req: Request, res: Response) => {
       });
 
       if (existingFolder) {
-        res.status(409).json({ error: "A folder with this name already exists in this location" });
+        res.status(409).json({
+          error: "A folder with this name already exists in this location",
+        });
         return;
       }
     }
@@ -332,7 +348,15 @@ router.patch("/:id", async (req: Request, res: Response) => {
       }
     }
 
-    loggingService.logCustom("folder_renamed", { folderId: updatedFolder.id, oldName: folder.name, newName: updatedFolder.name }, req);
+    loggingService.logCustom(
+      "folder_renamed",
+      {
+        folderId: updatedFolder.id,
+        oldName: folder.name,
+        newName: updatedFolder.name,
+      },
+      req,
+    );
 
     res.json(updatedFolder);
   } catch (error) {
@@ -372,14 +396,21 @@ router.patch("/:id/move", async (req: Request, res: Response) => {
       }
 
       // Prevent moving a folder into itself or its own descendants
-      if (newParent.path.startsWith(folder.path + "/") || newParent.id === folder.id) {
-        res.status(400).json({ error: "Cannot move a folder into itself or its descendants" });
+      if (
+        newParent.path.startsWith(folder.path + "/") ||
+        newParent.id === folder.id
+      ) {
+        res.status(400).json({
+          error: "Cannot move a folder into itself or its descendants",
+        });
         return;
       }
     }
 
     // Calculate new path
-    const newPath = newParent ? newParent.path + "/" + folder.name : "/" + folder.name;
+    const newPath = newParent
+      ? newParent.path + "/" + folder.name
+      : "/" + folder.name;
 
     // Check if a folder with same name already exists at destination
     const existingFolder = await prisma.folder.findUnique({
@@ -387,7 +418,9 @@ router.patch("/:id/move", async (req: Request, res: Response) => {
     });
 
     if (existingFolder && existingFolder.id !== folder.id) {
-      res.status(409).json({ error: "A folder with this name already exists in the destination" });
+      res.status(409).json({
+        error: "A folder with this name already exists in the destination",
+      });
       return;
     }
 

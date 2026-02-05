@@ -17,6 +17,7 @@ import {
   isAzureStorageConfigured,
 } from "../services/bootstrap.js";
 import { loggingService } from "../services/logging.js";
+import { sseService } from "../services/sse.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -56,7 +57,7 @@ function validateFile(
 router.get("/", async (req: Request, res: Response) => {
   try {
     const folderId = req.query.folderId as string | undefined;
-    
+
     const files = await prisma.file.findMany({
       where: folderId ? { folderId } : {},
       include: {
@@ -201,6 +202,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
     });
 
     loggingService.logUpload(file.id, originalname, size, req);
+    sseService.broadcast("file:added", file, folderId);
 
     res.status(201).json(file);
   } catch (error) {
@@ -238,6 +240,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
     });
 
     loggingService.logDelete(file.id, file.name, req);
+    sseService.broadcast("file:deleted", { id: file.id }, file.folderId);
 
     res.status(204).send();
   } catch (error) {
@@ -314,6 +317,11 @@ router.patch("/:id/move", async (req: Request, res: Response) => {
       },
       req,
     );
+    sseService.broadcast("file:moved", {
+      id: updatedFile.id,
+      oldFolderId: file.folderId,
+      newFolderId: folderId,
+    });
 
     res.json(updatedFile);
   } catch (error) {
