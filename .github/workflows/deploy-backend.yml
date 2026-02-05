@@ -64,3 +64,24 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.sha }}
+
+      - name: Setup Node.js for migrations
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Get DATABASE_URL from Azure
+        id: db
+        run: |
+          DATABASE_URL=$(az webapp config appsettings list --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group rg-cloudazure-dev --query "[?name=='DATABASE_URL'].value" -o tsv)
+          echo "::add-mask::$DATABASE_URL"
+          echo "url=$DATABASE_URL" >> $GITHUB_OUTPUT
+
+      - name: Apply database migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: ${{ steps.db.outputs.url }}
+        run: |
+          npm ci --only=production
+          npx prisma db push --skip-generate
+          echo "✅ Database schema synchronized"
