@@ -69,6 +69,9 @@ module appService 'modules/appservice.bicep' = {
   }
 }
 
+// Construct database connection string securely (not exposed in module outputs)
+var databaseConnectionString = 'postgresql://${dbAdminLogin}:${dbAdminPassword}@${database.outputs.serverFqdn}:5432/${projectName}db?sslmode=require'
+
 module keyVault 'modules/keyvault.bicep' = {
   name: 'keyvault-deployment'
   scope: rg
@@ -80,7 +83,7 @@ module keyVault 'modules/keyvault.bicep' = {
       appService.outputs.frontendPrincipalId
       appService.outputs.backendPrincipalId
     ]
-    databaseConnectionString: database.outputs.connectionString
+    databaseConnectionString: databaseConnectionString
     storageAccountName: storage.outputs.storageAccountName
     storageContainerName: 'uploads'
   }
@@ -105,7 +108,6 @@ module functionApp 'modules/functionapp.bicep' = {
     location: location
     environment: environment
     projectName: projectName
-    storageConnectionString: storage.outputs.storageConnectionString
   }
 }
 

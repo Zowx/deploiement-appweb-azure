@@ -68,4 +68,4 @@ resource firewallAzureServices 'Microsoft.DBforPostgreSQL/flexibleServers/firewa
 output serverName string = postgresServer.name
 output serverFqdn string = postgresServer.properties.fullyQualifiedDomainName
 output databaseName string = database.name
-output connectionString string = 'postgresql://${administratorLogin}@${serverName}:${administratorLoginPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/${databaseName}?sslmode=require'
+// Connection string is constructed in Key Vault module to avoid exposing secrets in outputs

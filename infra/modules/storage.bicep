@@ -46,4 +46,4 @@ output storageAccountName string = storageAccount.name
 output storageAccountId string = storageAccount.id
 output containerName string = blobContainer.name
 output blobEndpoint string = storageAccount.properties.primaryEndpoints.blob
-output storageConnectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+// Storage connection string should be accessed via Managed Identity, not exposed in outputs

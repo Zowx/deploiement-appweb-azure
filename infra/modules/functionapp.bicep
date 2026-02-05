@@ -7,15 +7,26 @@ param environment string
 @description('Project name')
 param projectName string
 
-@description('Storage account connection string')
-@secure()
-param storageConnectionString string
-
 @description('Application Insights Instrumentation Key (optional)')
 param appInsightsInstrumentationKey string = ''
 
 var functionAppName = 'func-${projectName}-logging-${environment}'
 var hostingPlanName = 'asp-${projectName}-func-${environment}'
+var functionStorageAccountName = 'stfunc${replace(projectName, '-', '')}${environment}'
+
+// Dedicated storage account for Function App
+resource functionStorageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+  name: functionStorageAccountName
+  location: location
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+  }
+}
 
 // Consumption plan for Functions
 resource hostingPlan 'Microsoft.Web/serverfarms@2023-01-01' = {
@@ -48,11 +59,11 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
-          value: storageConnectionString
+          value: 'DefaultEndpointsProtocol=https;AccountName=${functionStorageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${functionStorageAccount.listKeys().keys[0].value}'
         }
         {
           name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: storageConnectionString
+          value: 'DefaultEndpointsProtocol=https;AccountName=${functionStorageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${functionStorageAccount.listKeys().keys[0].value}'
         }
         {
           name: 'WEBSITE_CONTENTSHARE'
@@ -69,10 +80,6 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
           value: '~20'
-        }
-        {
-          name: 'STORAGE_CONNECTION_STRING'
-          value: storageConnectionString
         }
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
