@@ -30,15 +30,19 @@ Application web complète déployée sur Microsoft Azure suivant une architectur
 | Composant | URL |
 |-----------|-----|
 | **Frontend** | https://app-cloudazure-frontend-dev.azurewebsites.net |
+| **Frontend - Logs** | https://app-cloudazure-frontend-dev.azurewebsites.net/logs |
 | **Backend API** | https://app-cloudazure-backend-dev.azurewebsites.net |
 | **Azure Function** | https://func-cloudazure-logging-dev.azurewebsites.net |
 
 ### Fonctionnalités disponibles
 
-- Upload de fichiers vers Azure Blob Storage
-- Liste et gestion des fichiers uploadés
-- Suppression de fichiers
-- Logging d'activité via Azure Function
+- **Gestion de fichiers** : Upload, téléchargement, visualisation inline, suppression
+- **Gestion de dossiers** : Création, navigation hiérarchique, renommage, déplacement, suppression
+- **Organisation** : Déplacement de fichiers entre dossiers, filtrage et tri
+- **Temps réel** : Synchronisation automatique via Server-Sent Events (SSE)
+- **Visualisation** : Aperçu inline des images, PDF et fichiers texte
+- **Logging** : Suivi d'activité via Azure Function avec page dédiée `/logs`
+- **Stockage** : Azure Blob Storage (production) ou stockage local (développement)
 
 ---
 
@@ -46,33 +50,43 @@ Application web complète déployée sur Microsoft Azure suivant une architectur
 
 ### Schéma de l'architecture 3-tiers
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            Resource Group (rg-cloudazure-dev)               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────────┐  │
-│  │     Frontend     │    │     Backend      │    │     PostgreSQL       │  │
-│  │   App Service    │───▶│   App Service    │───▶│   Flexible Server    │  │
-│  │     (React)      │    │    (Express)     │    │                      │  │
-│  └──────────────────┘    └────────┬─────────┘    └──────────────────────┘  │
-│                                   │                                         │
-│                                   ▼                                         │
-│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────────┐  │
-│  │    Key Vault     │    │  Blob Storage    │    │  App Configuration   │  │
-│  │    (Secrets)     │    │   (Fichiers)     │    │    (Settings)        │  │
-│  └──────────────────┘    └──────────────────┘    └──────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph RG1["Resource Group (rg-cloudazure-dev)"]
+        subgraph Presentation["Tier Présentation"]
+            Frontend["Frontend App Service<br/>(React + Vite)"]
+        end
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       Resource Group (rg-cloudazure-func-dev)               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐                                                       │
-│  │  Azure Function  │  FaaS - Logging d'activité                            │
-│  │   (Consumption)  │  Stockage dans Table Storage                          │
-│  └──────────────────┘                                                       │
-└─────────────────────────────────────────────────────────────────────────────┘
+        subgraph Logic["Tier Logique Métier"]
+            Backend["Backend App Service<br/>(Express + TypeScript)"]
+        end
+
+        subgraph Data["Tier Données"]
+            PostgreSQL[("PostgreSQL<br/>Flexible Server")]
+            Blob[("Blob Storage<br/>(Fichiers)")]
+        end
+
+        subgraph Services["Services Azure"]
+            KeyVault["Key Vault<br/>(Secrets)"]
+            AppConfig["App Configuration<br/>(Settings)"]
+        end
+
+        Frontend -->|API REST| Backend
+        Backend -->|Prisma ORM| PostgreSQL
+        Backend -->|Azure SDK| Blob
+        Backend -.->|Managed Identity| KeyVault
+        Backend -.->|Managed Identity| AppConfig
+    end
+
+    subgraph RG2["Resource Group (rg-cloudazure-func-dev)"]
+        Function["Azure Function<br/>(Consumption)"]
+        TableStorage[("Table Storage<br/>(Logs)")]
+        Function --> TableStorage
+    end
+
+    Backend -->|HTTP| Function
+
+    User((Utilisateur)) -->|HTTPS| Frontend
 ```
 
 ### Description des tiers
@@ -190,17 +204,13 @@ Application web complète déployée sur Microsoft Azure suivant une architectur
 
 L'application utilise des **System-Assigned Managed Identities** pour l'authentification entre services Azure, éliminant le besoin de stocker des credentials dans le code.
 
-```
-┌─────────────────────┐
-│  Backend App Service │
-│  (Managed Identity)  │
-└──────────┬──────────┘
-           │
-           ├──────────────────▶ Storage Account (Storage Blob Data Contributor)
-           │
-           ├──────────────────▶ Key Vault (Key Vault Secrets User)
-           │
-           └──────────────────▶ App Configuration (App Configuration Data Reader)
+```mermaid
+flowchart LR
+    Backend["Backend App Service<br/>(Managed Identity)"]
+
+    Backend -->|"Storage Blob Data Contributor"| Storage[("Storage Account")]
+    Backend -->|"Key Vault Secrets User"| KeyVault["Key Vault"]
+    Backend -->|"App Configuration Data Reader"| AppConfig["App Configuration"]
 ```
 
 **Rôles RBAC attribués :**
@@ -300,13 +310,35 @@ Le projet utilise **GitHub Actions** avec 4 workflows distincts pour un déploie
 └── deploy-functions.yml  # Azure Function
 ```
 
-### Authentification Azure (OIDC)
+### Authentification Azure (OIDC vs Publish Profile)
 
-Les workflows utilisent **OpenID Connect (OIDC)** pour l'authentification, évitant le stockage de secrets de longue durée.
+Les workflows utilisent **OpenID Connect (OIDC)** avec Workload Identity Federation pour l'authentification, évitant le stockage de secrets de longue durée.
+
+#### Comparaison des méthodes d'authentification
+
+| Aspect | Publish Profile | OIDC (notre choix) |
+|--------|-----------------|---------------------|
+| **Secrets GitHub** | 1 (`AZURE_WEBAPP_PUBLISH_PROFILE`) | 3 (`CLIENT_ID`, `TENANT_ID`, `SUBSCRIPTION_ID`) |
+| **Type de credentials** | Credentials FTPS statiques | Token temporaire (sans mot de passe) |
+| **Sécurité** | ⚠️ Si le secret fuite, accès complet | ✅ Aucun secret réel stocké |
+| **Expiration** | Peut expirer, nécessite régénération | Jamais d'expiration |
+| **Rotation** | Manuelle | Automatique (tokens temporaires) |
+| **Recommandation Microsoft** | Ancienne méthode | ✅ Méthode recommandée |
+| **Scope** | Limité à une Web App | Accès à toute la subscription |
+
+#### Pourquoi OIDC ?
+
+1. **Sécurité renforcée** : Aucun mot de passe n'est stocké dans GitHub. Les identifiants (`CLIENT_ID`, `TENANT_ID`, `SUBSCRIPTION_ID`) sont des identifiants publics, pas des secrets.
+
+2. **Fonctionnement** : GitHub génère un token JWT signé → Azure le vérifie via la relation de confiance (Federated Credential) → Azure émet un token d'accès temporaire.
+
+3. **Zéro secret à rotation** : Pas de credentials qui expirent ou peuvent fuiter.
+
+#### Configuration utilisée
 
 ```yaml
 permissions:
-  id-token: write
+  id-token: write   # Permet à GitHub de générer un token OIDC
   contents: read
 
 - uses: azure/login@v2
@@ -320,16 +352,11 @@ permissions:
 
 **Déclencheur :** Push sur `infra/**` ou dispatch manuel
 
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Checkout   │───▶│ Azure Login │───▶│  Validate   │
-└─────────────┘    └─────────────┘    └──────┬──────┘
-                                             │
-                                             ▼
-                                    ┌─────────────────┐
-                                    │ Deploy Bicep    │
-                                    │ (what-if + run) │
-                                    └─────────────────┘
+```mermaid
+flowchart LR
+    A[Checkout] --> B[Azure Login<br/>OIDC]
+    B --> C[Validate Bicep]
+    C --> D[Deploy Bicep<br/>what-if + run]
 ```
 
 **Étapes :**
@@ -342,17 +369,14 @@ permissions:
 
 **Déclencheur :** Push sur `backend/**` ou dispatch manuel
 
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Checkout   │───▶│ Setup Node  │───▶│   Install   │
-└─────────────┘    └─────────────┘    └──────┬──────┘
-                                             │
-       ┌─────────────────────────────────────┤
-       ▼                                     ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│ Prisma Gen  │───▶│ TypeScript  │───▶│   Deploy    │
-│             │    │   Build     │    │ App Service │
-└─────────────┘    └─────────────┘    └─────────────┘
+```mermaid
+flowchart LR
+    A[Checkout] --> B[Setup Node.js 20]
+    B --> C[npm ci]
+    C --> D[Prisma Generate]
+    D --> E[TypeScript Build]
+    E --> F[Deploy App Service]
+    F --> G[Prisma Migrate]
 ```
 
 **Étapes :**
@@ -404,23 +428,140 @@ permissions:
 L'application permet l'upload de fichiers vers Azure Blob Storage avec stockage des métadonnées en base de données.
 
 **Flux d'upload :**
+```mermaid
+sequenceDiagram
+    participant U as Utilisateur
+    participant F as Frontend
+    participant B as Backend API
+    participant S as Blob Storage
+    participant DB as PostgreSQL
+
+    U->>F: Sélectionne fichier
+    F->>B: POST /api/files (multipart)
+    B->>S: Upload blob
+    S-->>B: URL du blob
+    B->>DB: INSERT metadata
+    DB-->>B: File record
+    B-->>F: 201 Created + file data
+    F-->>U: Affiche fichier
 ```
-┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│ Frontend │───▶│ Backend  │───▶│  Blob    │    │PostgreSQL│
-│ (Form)   │    │  (API)   │    │ Storage  │    │(Metadata)│
-└──────────┘    └────┬─────┘    └──────────┘    └──────────┘
-                     │                                │
-                     └────────────────────────────────┘
+
+### Synchronisation temps réel (SSE)
+
+L'application utilise **Server-Sent Events** pour synchroniser automatiquement l'interface entre plusieurs utilisateurs.
+
+```mermaid
+sequenceDiagram
+    participant A as Client A
+    participant B as Backend (Express)
+    participant C as Client B
+
+    A->>B: GET /api/events (SSE Connect)
+    C->>B: GET /api/events (SSE Connect)
+    Note over A,C: Connexions SSE établies
+
+    A->>B: POST /api/files (Upload)
+    B-->>A: event: file:added
+    B-->>C: event: file:added
+    Note over A,C: Mise à jour instantanée
 ```
+
+**Avantages :**
+- Mise à jour instantanée sans refresh
+- Connexion légère (unidirectionnelle)
+- Reconnexion automatique en cas de coupure
+
+### Gestion des dossiers
+
+L'application supporte une arborescence hiérarchique de dossiers avec chemins normalisés.
+
+**Modèle de données :**
+```mermaid
+erDiagram
+    Folder ||--o{ File : contains
+    Folder ||--o{ Folder : "parent/children"
+
+    Folder {
+        uuid id PK
+        string name
+        string path UK
+        uuid parentId FK
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    File {
+        uuid id PK
+        string name
+        string url
+        int size
+        string mimeType
+        uuid folderId FK
+        datetime createdAt
+        datetime updatedAt
+    }
+```
+
+**Fonctionnalités :**
+- Navigation hiérarchique (breadcrumb)
+- Création de sous-dossiers
+- Renommage avec mise à jour cascade des chemins enfants
+- Déplacement de dossiers (avec validation anti-boucle)
+- Suppression (uniquement si vide)
 
 ### API REST
 
+#### Health Check
+
 | Endpoint | Méthode | Description |
 |----------|---------|-------------|
-| `GET /api/health` | GET | Health check de l'API |
-| `GET /api/files` | GET | Liste tous les fichiers uploadés |
-| `POST /api/files` | POST | Upload d'un nouveau fichier |
-| `DELETE /api/files/:id` | DELETE | Supprime un fichier par ID |
+| `/health` | GET | Health check de l'API avec infos de configuration |
+
+#### Files (Fichiers)
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/api/files` | GET | Liste tous les fichiers (optionnel: `?folderId=xxx`) |
+| `/api/files/:id` | GET | Récupère les métadonnées d'un fichier |
+| `/api/files/download/:fileName` | GET | Télécharge ou visualise un fichier (`?download=true` pour forcer) |
+| `/api/files` | POST | Upload d'un nouveau fichier (multipart/form-data) |
+| `/api/files/:id` | DELETE | Supprime un fichier par ID |
+| `/api/files/:id/move` | PATCH | Déplace un fichier vers un autre dossier |
+| `/api/files/config/info` | GET | Informations de configuration (debug) |
+
+#### Folders (Dossiers)
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/api/folders` | GET | Liste tous les dossiers avec compteurs |
+| `/api/folders/:id` | GET | Récupère un dossier avec son contenu (fichiers + sous-dossiers) |
+| `/api/folders/root/contents` | GET | Récupère le contenu de la racine |
+| `/api/folders/path/*` | GET | Récupère un dossier par son chemin (ex: `/api/folders/path/documents/photos`) |
+| `/api/folders` | POST | Crée un nouveau dossier (`{name, parentId?}`) |
+| `/api/folders/:id` | DELETE | Supprime un dossier vide |
+| `/api/folders/:id` | PATCH | Renomme un dossier (`{name}`) |
+| `/api/folders/:id/move` | PATCH | Déplace un dossier (`{parentId}`) |
+
+#### Logs (Proxy vers Azure Function)
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/api/logs` | GET | Récupère les logs (`?date=YYYY-MM-DD&action=upload&limit=100`) |
+| `/api/logs` | POST | Enregistre une activité manuellement |
+| `/api/logs/stats` | GET | Statistiques agrégées par type d'action |
+
+#### Server-Sent Events (Temps réel)
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/api/events` | GET | Flux SSE pour mises à jour temps réel (`?folderId=xxx`) |
+
+**Événements SSE disponibles :**
+- `file:added` - Nouveau fichier uploadé
+- `file:deleted` - Fichier supprimé
+- `file:moved` - Fichier déplacé
+- `folder:added` - Nouveau dossier créé
+- `folder:deleted` - Dossier supprimé
 
 ### Azure Function - Logging (FaaS)
 
@@ -435,8 +576,14 @@ La Function App implémente 3 fonctions pour la gestion des logs d'activité :
 **Types d'activités loggées :**
 - `upload` : Upload d'un fichier
 - `download` : Téléchargement d'un fichier
+- `view` : Visualisation inline d'un fichier
 - `delete` : Suppression d'un fichier
 - `list` : Consultation de la liste
+- `file_moved` : Déplacement d'un fichier
+- `folder_created` : Création d'un dossier
+- `folder_deleted` : Suppression d'un dossier
+- `folder_renamed` : Renommage d'un dossier
+- `folder_moved` : Déplacement d'un dossier
 - `error` : Erreur critique
 
 **Stockage :** Azure Table Storage (table `ActivityLogs`), partitionné par date (YYYY-MM-DD)
@@ -462,58 +609,88 @@ cloud-azure/
 ├── PLAN.md                      # Plan de développement initial
 ├── Makefile                     # Commandes Docker simplifiées
 ├── docker-compose.yml           # Configuration Docker dev
-├── docker-compose.prod.yml      # Configuration Docker prod
+├── docker-compose.dev.yml       # Configuration Docker dev (hot reload)
 │
 ├── frontend/                    # Application React (Tier Présentation)
 │   ├── src/
 │   │   ├── components/          # Composants React
-│   │   ├── services/            # Services API (fetch)
-│   │   └── App.tsx              # Composant principal
+│   │   │   ├── FileList.tsx     # Liste des fichiers avec filtres
+│   │   │   ├── FileUpload.tsx   # Formulaire d'upload
+│   │   │   ├── FileViewer.tsx   # Visualisation inline
+│   │   │   └── FolderManager.tsx # Gestion des dossiers
+│   │   ├── pages/
+│   │   │   ├── HomePage.tsx     # Page principale (file manager)
+│   │   │   └── LogsPage.tsx     # Page des logs d'activité
+│   │   ├── api/                 # Services API (fetch)
+│   │   │   ├── files.ts         # API fichiers
+│   │   │   ├── folders.ts       # API dossiers
+│   │   │   ├── logs.ts          # API logs
+│   │   │   └── sse.ts           # Hook SSE temps réel
+│   │   ├── hooks/
+│   │   │   └── useFileFilters.ts # Hook filtrage/tri
+│   │   ├── App.tsx              # Routes React Router
+│   │   └── main.tsx             # Point d'entrée
 │   ├── package.json
-│   ├── vite.config.ts
-│   ├── nginx.conf               # Configuration Nginx (production)
-│   └── Dockerfile
+│   └── vite.config.ts
 │
 ├── backend/                     # API Express (Tier Logique métier)
 │   ├── src/
-│   │   ├── routes/              # Routes API REST
-│   │   ├── services/            # Services métier (Azure SDK)
-│   │   └── index.ts             # Point d'entrée
+│   │   ├── routes/
+│   │   │   ├── files.ts         # CRUD fichiers + upload
+│   │   │   ├── folders.ts       # CRUD dossiers
+│   │   │   ├── logs.ts          # Proxy vers Azure Function
+│   │   │   └── sse.ts           # Server-Sent Events
+│   │   ├── services/
+│   │   │   ├── storage.ts       # Azure Blob Storage
+│   │   │   ├── local-storage.ts # Stockage local (dev)
+│   │   │   ├── bootstrap.ts     # Init Key Vault + App Config
+│   │   │   ├── config.ts        # Configuration
+│   │   │   ├── logging.ts       # Service de logging
+│   │   │   ├── prisma.ts        # Client Prisma
+│   │   │   └── sse.ts           # Service SSE (broadcast)
+│   │   └── index.ts             # Point d'entrée Express
 │   ├── prisma/
-│   │   └── schema.prisma        # Schéma base de données
+│   │   └── schema.prisma        # Schéma BDD (File, Folder)
 │   ├── package.json
-│   ├── tsconfig.json
-│   └── Dockerfile
+│   └── tsconfig.json
 │
 ├── functions/                   # Azure Functions (FaaS)
 │   └── logging/
 │       ├── src/functions/
 │       │   ├── logActivity.ts   # POST - Enregistrer activité
 │       │   ├── getLogs.ts       # GET - Récupérer logs
-│       │   └── cleanupLogs.ts   # Timer - Nettoyage auto
+│       │   └── cleanupLogs.ts   # Timer - Nettoyage auto (2h du matin)
 │       ├── package.json
 │       ├── host.json
 │       └── tsconfig.json
 │
 ├── infra/                       # Infrastructure Bicep (IaC)
-│   ├── main.bicep               # Template principal
-│   ├── modules/                 # Modules Bicep
-│   │   ├── appservice.bicep
-│   │   ├── database.bicep
-│   │   ├── storage.bicep
-│   │   ├── keyvault.bicep
-│   │   ├── appconfig.bicep
-│   │   └── functionapp.bicep
+│   ├── main.bicep               # Template principal (scope: subscription)
+│   ├── modules/
+│   │   ├── appservice.bicep     # App Service Plan + 2 Web Apps
+│   │   ├── database.bicep       # PostgreSQL Flexible Server
+│   │   ├── storage.bicep        # Storage Account + Container
+│   │   ├── keyvault.bicep       # Key Vault + Secrets + RBAC
+│   │   ├── appconfig.bicep      # App Configuration
+│   │   └── functionapp.bicep    # Function App (Consumption)
 │   └── parameters/
 │       ├── dev.bicepparam
 │       └── prod.bicepparam
 │
 └── .github/workflows/           # CI/CD GitHub Actions
-    ├── deploy-infra.yml
-    ├── deploy-backend.yml
-    ├── deploy-frontend.yml
-    └── deploy-functions.yml
+    ├── deploy-infra.yml         # Déploiement infrastructure
+    ├── deploy-backend.yml       # Build + Deploy backend
+    ├── deploy-frontend.yml      # Build + Deploy frontend
+    └── deploy-functions.yml     # Build + Deploy Azure Function
 ```
+
+### Routes Frontend
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | HomePage | Gestionnaire de fichiers principal |
+| `/file/:id` | FileViewer | Visualisation d'un fichier |
+| `/logs` | LogsPage | Consultation des logs d'activité |
 
 ---
 
@@ -782,6 +959,7 @@ location / {
 | `AZURE_KEYVAULT_NAME` | Nom du Key Vault | `kv-cloudazure-dev` |
 | `AZURE_APPCONFIG_ENDPOINT` | Endpoint App Configuration | `https://appcs-....azconfig.io` |
 | `AZURE_FUNCTION_URL` | URL de la Function App | `https://func-....azurewebsites.net` |
+| `AZURE_FUNCTION_KEY` | Clé d'accès à la Function App | `xxxxxxxxxxxxxxxx` |
 | `PORT` | Port du serveur | `3001` |
 
 ### Frontend
