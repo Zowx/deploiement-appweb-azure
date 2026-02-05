@@ -101,6 +101,15 @@ module appConfig 'modules/appconfig.bicep' = {
   }
 }
 
+module storageRbac 'modules/storage-rbac.bicep' = {
+  name: 'storage-rbac-deployment'
+  scope: rg
+  params: {
+    storageAccountName: storage.outputs.storageAccountName
+    backendPrincipalId: appService.outputs.backendPrincipalId
+  }
+}
+
 module functionApp 'modules/functionapp.bicep' = {
   name: 'functionapp-deployment'
   scope: rgFunc
