@@ -52,11 +52,18 @@ function validateFile(
   return { valid: true };
 }
 
-// GET all files
-router.get("/", async (_req: Request, res: Response) => {
+// GET all files (optionally filtered by folder)
+router.get("/", async (req: Request, res: Response) => {
   try {
-    const files = await prisma.file.findMany();
-    loggingService.logList(files.length, _req);
+    const folderId = req.query.folderId as string | undefined;
+    
+    const files = await prisma.file.findMany({
+      where: folderId ? { folderId } : {},
+      include: {
+        folder: true,
+      },
+    });
+    loggingService.logList(files.length, req);
     res.json(files);
   } catch (error) {
     console.error("Error fetching files:", error);
@@ -137,6 +144,18 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
     }
 
     const { originalname, buffer, mimetype, size } = req.file;
+    const folderId = req.body.folderId || null;
+
+    // Validate folder exists if specified
+    if (folderId) {
+      const folder = await prisma.folder.findUnique({
+        where: { id: folderId },
+      });
+      if (!folder) {
+        res.status(404).json({ error: "Folder not found" });
+        return;
+      }
+    }
 
     // Validate file based on App Configuration settings
     const validation = validateFile(originalname, size);
@@ -167,6 +186,10 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
         url,
         size,
         mimeType: mimetype,
+        folderId,
+      },
+      include: {
+        folder: true,
       },
     });
 

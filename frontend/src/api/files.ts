@@ -5,6 +5,12 @@ export interface FileData {
   size: number;
   mimeType: string;
   createdAt: string;
+  folderId?: string | null;
+  folder?: {
+    id: string;
+    name: string;
+    path: string;
+  };
 }
 
 const API_URL = import.meta.env.VITE_API_URL || "/api/files";
@@ -33,8 +39,9 @@ export function getFullFileUrl(
   return download ? `${fullUrl}?download=true` : fullUrl;
 }
 
-export async function getFiles(): Promise<FileData[]> {
-  const response = await fetch(API_URL);
+export async function getFiles(folderId?: string | null): Promise<FileData[]> {
+  const url = folderId ? `${API_URL}?folderId=${folderId}` : API_URL;
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error("Failed to fetch files");
   }
@@ -44,9 +51,13 @@ export async function getFiles(): Promise<FileData[]> {
 export async function uploadFile(
   file: File,
   onProgress?: (progress: number) => void,
+  folderId?: string | null,
 ): Promise<FileData> {
   const formData = new FormData();
   formData.append("file", file);
+  if (folderId) {
+    formData.append("folderId", folderId);
+  }
 
   const xhr = new XMLHttpRequest();
 

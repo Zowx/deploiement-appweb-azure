@@ -8,12 +8,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  path      String   @unique // chemin complet du dossier (ex: "/docs/images")
+  parentId  String?
+  parent    Folder?  @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[] @relation("FolderToFolder")
+  files     File[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@index([path])
+}
+
 model File {
   id        String   @id @default(cuid())
   name      String
   url       String
   size      Int
   mimeType  String
+  folderId  String?
+  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([folderId])
 }
