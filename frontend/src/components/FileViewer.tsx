@@ -52,10 +52,19 @@ export function FileViewer() {
   const viewUrl = getFullFileUrl(file.url, false);
   const downloadUrl = getFullFileUrl(file.url, true);
 
+  const handleBack = () => {
+    // Retourner au dossier parent du fichier
+    if (file.folderId) {
+      navigate(`/?folderId=${file.folderId}`);
+    } else {
+      navigate("/");
+    }
+  };
+
   return (
     <div className="container">
       <div className="file-viewer-header">
-        <button onClick={() => navigate("/")} className="btn btn-primary">
+        <button onClick={handleBack} className="btn btn-primary">
           ← Retour
         </button>
         <h2>{file.name}</h2>

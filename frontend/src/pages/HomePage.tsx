@@ -1,19 +1,28 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { FileUpload } from "../components/FileUpload";
-import { FileList } from "../components/FileList";
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { FileUpload } from '../components/FileUpload';
+import { FileList } from '../components/FileList';
 import { FolderManager } from '../components/FolderManager';
-import { FileData } from "../api/files";
+import { FileData } from '../api/files';
 import { FolderData, getFolder, getRootContents } from '../api/folders';
 
 export function HomePage() {
+    const [searchParams] = useSearchParams();
     const [files, setFiles] = useState<FileData[]>([]);
     const [folders, setFolders] = useState<FolderData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-    const [currentPath, setCurrentPath] = useState<string>("/");
+    const [currentPath, setCurrentPath] = useState<string>('/');
     const [parentFolderId, setParentFolderId] = useState<string | null>(null);
+
+    // Lire le folderId depuis l'URL au chargement
+    useEffect(() => {
+        const folderIdFromUrl = searchParams.get('folderId');
+        if (folderIdFromUrl) {
+            setCurrentFolderId(folderIdFromUrl);
+        }
+    }, [searchParams]);
 
     const fetchContents = async (folderId: string | null = null) => {
         try {
@@ -28,7 +37,7 @@ export function HomePage() {
                 const rootData = await getRootContents();
                 setFiles(rootData.files);
                 setFolders(rootData.folders);
-                setCurrentPath("/");
+                setCurrentPath('/');
                 setParentFolderId(null);
             }
             setError(null);
@@ -43,9 +52,9 @@ export function HomePage() {
         fetchContents(currentFolderId);
     }, [currentFolderId]);
 
-  const handleUploadComplete = (file: FileData) => {
-    setFiles((prev) => [file, ...prev]);
-  };
+    const handleUploadComplete = (file: FileData) => {
+        setFiles((prev) => [file, ...prev]);
+    };
 
     const handleFileDeleted = (id: string) => {
         setFiles((prev) => prev.filter((f) => f.id !== id));
@@ -77,34 +86,34 @@ export function HomePage() {
         setFolders((prev) => prev.filter((f) => f.id !== folderId));
     };
 
-  return (
-    <div className="container">
-      <div className="logs-header">
-        <h1>Cloud Azure - File Manager</h1>
-        <Link to="/logs" className="btn btn-secondary">
-          📊 Logs FaaS
-        </Link>
-      </div>
+    return (
+        <div className='container'>
+            <div className='logs-header'>
+                <h1>Cloud Azure - File Manager</h1>
+                <Link to='/logs' className='btn btn-secondary'>
+                    📊 Logs FaaS
+                </Link>
+            </div>
 
-            <FolderManager 
+            <FolderManager
                 currentFolderId={currentFolderId}
                 onFolderCreated={handleFolderCreated}
                 onRefresh={() => fetchContents(currentFolderId)}
             />
 
-            <FileUpload 
+            <FileUpload
                 onUploadComplete={handleUploadComplete}
                 currentFolderId={currentFolderId}
                 currentPath={currentPath}
             />
 
-      {error && <div className="error">{error}</div>}
+            {error && <div className='error'>{error}</div>}
 
             {loading ? (
                 <div className='loading'>Chargement...</div>
             ) : (
-                <FileList 
-                    files={files} 
+                <FileList
+                    files={files}
                     folders={folders}
                     currentPath={currentPath}
                     currentFolderId={currentFolderId}
