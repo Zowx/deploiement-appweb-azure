@@ -1,5 +1,5 @@
 interface ActivityLog {
-  action: "upload" | "download" | "delete" | "list" | "error";
+  action: "upload" | "download" | "delete" | "list" | "error" | string;
   fileId?: string;
   fileName?: string;
   fileSize?: number;
@@ -8,6 +8,7 @@ interface ActivityLog {
   userAgent?: string;
   details?: string;
   errorMessage?: string;
+  metadata?: Record<string, any>;
 }
 
 class LoggingService {
@@ -119,6 +120,17 @@ class LoggingService {
         action: "error",
         errorMessage: error,
         details,
+      },
+      req,
+    );
+  }
+
+  async logCustom(action: string, metadata: Record<string, any>, req?: any) {
+    await this.logActivity(
+      {
+        action,
+        metadata,
+        details: `Custom action: ${action}`,
       },
       req,
     );

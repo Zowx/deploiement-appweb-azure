@@ -3,9 +3,11 @@ import { uploadFile, FileData } from "../api/files";
 
 interface FileUploadProps {
   onUploadComplete: (file: FileData) => void;
+  currentFolderId?: string | null;
+  currentPath?: string;
 }
 
-export function FileUpload({ onUploadComplete }: FileUploadProps) {
+export function FileUpload({ onUploadComplete, currentFolderId, currentPath = "/" }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export function FileUpload({ onUploadComplete }: FileUploadProps) {
     setProgress(0);
 
     try {
-      const uploadedFile = await uploadFile(file, setProgress);
+      const uploadedFile = await uploadFile(file, setProgress, currentFolderId);
       onUploadComplete(uploadedFile);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -41,6 +43,11 @@ export function FileUpload({ onUploadComplete }: FileUploadProps) {
   return (
     <div className="card">
       <h2>Uploader un fichier</h2>
+      {currentPath && currentPath !== "/" && (
+        <p style={{ fontSize: "0.875rem", color: "#666", marginBottom: "0.5rem" }}>
+          Dossier actuel : <strong>{currentPath}</strong>
+        </p>
+      )}
       <form className="upload-form" onSubmit={handleSubmit}>
         {error && <div className="error">{error}</div>}
         <input
