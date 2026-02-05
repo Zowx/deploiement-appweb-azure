@@ -70,17 +70,10 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Get DATABASE_URL from Key Vault
-        id: db
-        run: |
-          DATABASE_URL=$(az keyvault secret show --vault-name kv-cloudazure-dev --name database-connection-string --query "value" -o tsv)
-          echo "::add-mask::$DATABASE_URL"
-          echo "url=$DATABASE_URL" >> $GITHUB_OUTPUT
-
       - name: Apply database migrations
         working-directory: ./backend
         env:
-          DATABASE_URL: ${{ steps.db.outputs.url }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           npm ci --only=production
           npx prisma db push --skip-generate
