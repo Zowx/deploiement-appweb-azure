@@ -40,3 +40,21 @@ jobs:
           parameters: ./infra/parameters/dev.bicepparam
           deploymentName: infra-${{ github.run_number }}
           failOnStdErr: false
+
+      - name: Configure Storage RBAC (idempotent)
+        run: |
+          # Get backend principal ID
+          BACKEND_PRINCIPAL_ID=$(az webapp identity show \
+            --name app-cloudazure-backend-dev \
+            --resource-group rg-cloudazure-dev \
+            --query principalId -o tsv 2>/dev/null || echo "")
+
+          if [ -n "$BACKEND_PRINCIPAL_ID" ]; then
+            # Assign Storage Blob Data Contributor role (idempotent - no error if exists)
+            az role assignment create \
+              --assignee-object-id "$BACKEND_PRINCIPAL_ID" \
+              --assignee-principal-type ServicePrincipal \
+              --role "Storage Blob Data Contributor" \
+              --scope "/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-cloudazure-dev/providers/Microsoft.Storage/storageAccounts/stcloudazuredev" \
+              2>/dev/null || echo "Role assignment already exists or created"
+          fi
