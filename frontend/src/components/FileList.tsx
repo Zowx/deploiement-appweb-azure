@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { ArrowUp, ArrowDown, Eye, Download, Trash2 } from "lucide-react";
 import { useFileFilters } from "../hooks/useFileFilters";
+import { FolderManager } from "./FolderManager";
 
 interface FileListProps {
   files: FileData[];
@@ -18,6 +19,8 @@ interface FileListProps {
   canNavigateUp?: boolean;
   onFileMoved?: (fileId: string) => void;
   onFolderMoved?: (folderId: string) => void;
+  onFolderCreated?: (folder: FolderData) => void;
+  onRefresh?: () => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -49,6 +52,8 @@ export function FileList({
   canNavigateUp = false,
   onFileMoved,
   onFolderMoved,
+  onFolderCreated,
+  onRefresh,
 }: FileListProps) {
   const navigate = useNavigate();
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
@@ -514,9 +519,8 @@ export function FileList({
 
   return (
     <div className="card">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-        <h2>📂 {currentPath}</h2>
-        {canNavigateUp && onNavigateUp && (
+      {canNavigateUp && onNavigateUp && (
+        <div style={{ marginBottom: "1rem" }}>
           <button 
             onClick={onNavigateUp} 
             className={`btn btn-secondary ${dragOverFolderId === 'parent' ? 'drag-over' : ''}`}
@@ -536,6 +540,16 @@ export function FileList({
               <span style={{ marginLeft: "0.5rem" }}>📥</span>
             )}
           </button>
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+        <h2>📂 {currentPath}</h2>
+        {onFolderCreated && onRefresh && (
+          <FolderManager
+            currentFolderId={currentFolderId}
+            onFolderCreated={onFolderCreated}
+            onRefresh={onRefresh}
+          />
         )}
       </div>
 

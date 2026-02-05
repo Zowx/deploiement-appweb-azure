@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FileUpload } from "../components/FileUpload";
 import { FileList } from "../components/FileList";
-import { FolderManager } from "../components/FolderManager";
 import { FileData } from "../api/files";
 import { FolderData, getFolder, getRootContents } from "../api/folders";
 import { useSSE } from "../api/sse";
@@ -144,12 +143,6 @@ export function HomePage() {
         currentPath={currentPath}
       />
 
-      <FolderManager
-        currentFolderId={currentFolderId}
-        onFolderCreated={handleFolderCreated}
-        onRefresh={() => fetchContents(currentFolderId)}
-      />
-
       {error && <div className="error">{error}</div>}
 
       {loading ? (
@@ -168,6 +161,8 @@ export function HomePage() {
           canNavigateUp={currentFolderId !== null}
           onFileMoved={handleFileMoved}
           onFolderMoved={handleFolderMoved}
+          onFolderCreated={handleFolderCreated}
+          onRefresh={() => fetchContents(currentFolderId)}
         />
       )}
     </div>
