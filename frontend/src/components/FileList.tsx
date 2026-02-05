@@ -197,7 +197,7 @@ export function FileList({
     return (
       <div className="card">
         <h2>Fichiers uploadés</h2>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", marginTop: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem", marginTop: "1rem" }}>
           <div className="sort-dropdown" style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: "0.5rem", top: "50%", transform: "translateY(-50%)", color: "#666", fontSize: "1rem" }}>🔍</span>
             <input
@@ -346,7 +346,7 @@ export function FileList({
               }}
               title={sortOrder === "asc" ? "Tri ascendant" : "Tri descendant"}
             >
-              {sortOrder === "asc" ? <ArrowUp size={20} color="#2563eb" /> : <ArrowDown size={20} color="#2563eb" />}
+              {sortOrder === "asc" ? <ArrowUp size={20} color="#000000" /> : <ArrowDown size={20} color="#000000" />}
             </button>
           </div>
         </div>
@@ -359,7 +359,7 @@ export function FileList({
     return (
       <div className="card">
         <h2>Fichiers uploadés</h2>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", marginTop: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem", marginTop: "1rem" }}>
           <div className="sort-dropdown" style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: "0.5rem", top: "50%", transform: "translateY(-50%)", color: "#666", fontSize: "1rem" }}>🔍</span>
             <input
@@ -508,7 +508,7 @@ export function FileList({
               }}
               title={sortOrder === "asc" ? "Tri ascendant" : "Tri descendant"}
             >
-              {sortOrder === "asc" ? <ArrowUp size={20} color="#2563eb" /> : <ArrowDown size={20} color="#2563eb" />}
+              {sortOrder === "asc" ? <ArrowUp size={20} color="#000000" /> : <ArrowDown size={20} color="#000000" />}
             </button>
           </div>
         </div>
@@ -519,8 +519,8 @@ export function FileList({
 
   return (
     <div className="card">
-      {canNavigateUp && onNavigateUp && (
-        <div style={{ marginBottom: "1rem" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
+        {canNavigateUp && onNavigateUp ? (
           <button 
             onClick={onNavigateUp} 
             className={`btn btn-secondary ${dragOverFolderId === 'parent' ? 'drag-over' : ''}`}
@@ -528,11 +528,12 @@ export function FileList({
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center', 
-              fontSize: '1.5rem', 
-              width: '3rem', 
-              height: '3rem', 
-              padding: '0.5rem',
+              fontSize: '1.7rem', 
+              width: '2.7rem', 
+              height: '2.7rem', 
+              padding: 0,
               backgroundColor: '#ffffff',
+              marginRight: '0.5rem',
             }}
             onDragOver={(e) => handleDragOver(e, 'parent')}
             onDragLeave={handleDragLeave}
@@ -546,12 +547,11 @@ export function FileList({
             }}
             title="Dossier parent"
           >
-            ⬅️
+            <span style={{ fontSize: '1.7rem', lineHeight: 1, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⬅️</span>
           </button>
-        </div>
-      )}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-        <h2>📂 {currentPath}</h2>
+        ) : (
+          <div></div>
+        )}
         {onFolderCreated && onRefresh && (
           <FolderManager
             currentFolderId={currentFolderId}
@@ -560,6 +560,7 @@ export function FileList({
           />
         )}
       </div>
+      <h2 style={{ marginBottom: "1rem" }}>📂 {currentPath}</h2>
 
       {!hasContent ? (
         <div 
