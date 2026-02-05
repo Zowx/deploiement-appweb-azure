@@ -119,6 +119,10 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'AZURE_FUNCTION_URL'
           value: functionAppUrl
         }
+        {
+          name: 'DATABASE_URL'
+          value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=database-connection-string)'
+        }
       ]
     }
     httpsOnly: true

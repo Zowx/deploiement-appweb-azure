@@ -70,10 +70,10 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Get DATABASE_URL from Azure
+      - name: Get DATABASE_URL from Key Vault
         id: db
         run: |
-          DATABASE_URL=$(az webapp config appsettings list --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group rg-cloudazure-dev --query "[?name=='DATABASE_URL'].value" -o tsv)
+          DATABASE_URL=$(az keyvault secret show --vault-name kv-cloudazure-dev --name database-connection-string --query "value" -o tsv)
           echo "::add-mask::$DATABASE_URL"
           echo "url=$DATABASE_URL" >> $GITHUB_OUTPUT
 
