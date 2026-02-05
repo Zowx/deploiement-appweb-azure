@@ -981,7 +981,9 @@ location / {
 
 Projet réalisé dans le cadre du TP Cloud Azure - Architecture 3-Tiers.
 
-**Repository :** Accès donné à guilian.ganster@gmail.com (@gganster sur GitHub)
+**MORIN Enzo** ([@Zowx](https://github.com/Zowx)) <br/>
+**PEREIRA Matteo** ([@Aairuxul](https://github.com/Aairuxul)) <br/>
+**RUSSEIL Valentin** ([@ValentinRusseil](https://github.com/ValentinRusseil))
 
 ---
 
