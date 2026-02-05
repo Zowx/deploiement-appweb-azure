@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FileData, getFiles, getFullFileUrl } from "../api/files";
+import { ArrowLeft, Download } from "lucide-react";
 
 export function FileViewer() {
   const { id } = useParams<{ id: string }>();
@@ -64,16 +65,17 @@ export function FileViewer() {
   return (
     <div className="container">
       <div className="file-viewer-header">
-        <button onClick={handleBack} className="btn btn-primary">
-          ← Retour
+        <button onClick={handleBack} className="btn btn-primary" title="Retour à la liste">
+          <ArrowLeft size={16} />
         </button>
         <h2>{file.name}</h2>
         <a
           href={downloadUrl}
           download={file.name}
           className="btn btn-primary"
+          title="Télécharger le fichier"
         >
-          Télécharger
+          <Download size={16} />
         </a>
       </div>
 
@@ -110,8 +112,9 @@ export function FileViewer() {
               href={downloadUrl}
               download={file.name}
               className="btn btn-primary"
+              title="Télécharger le fichier"
             >
-              Télécharger le fichier
+              <Download size={16} />
             </a>
           </div>
         )}

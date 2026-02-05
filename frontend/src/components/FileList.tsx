@@ -1,7 +1,9 @@
-import { useState } from "react";
 import { FileData, deleteFile, getFullFileUrl, moveFile } from "../api/files";
 import { FolderData, deleteFolder, moveFolder } from "../api/folders";
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { ArrowUp, ArrowDown, Eye, Download, Trash2 } from "lucide-react";
+import { useFileFilters } from "../hooks/useFileFilters";
 
 interface FileListProps {
   files: FileData[];
@@ -52,6 +54,28 @@ export function FileList({
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [draggedFileId, setDraggedFileId] = useState<string | null>(null);
   const [draggedItemType, setDraggedItemType] = useState<'file' | 'folder' | null>(null);
+  const {
+    searchTerm,
+    sortKey,
+    sortOrder,
+    setSearchTerm,
+    setSortKey,
+    toggleSortOrder,
+    filteredAndSortedFiles,
+  } = useFileFilters();
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+
+  // Fermer le dropdown quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isSortDropdownOpen && !(event.target as Element).closest('.sort-dropdown')) {
+        setIsSortDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSortDropdownOpen]);
 
   const handleDeleteFile = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce fichier ?")) {
@@ -65,6 +89,8 @@ export function FileList({
       alert("Erreur lors de la suppression du fichier");
     }
   };
+
+  const sortedFiles = filteredAndSortedFiles(files);
 
   const handleDeleteFolder = async (id: string, folderName: string) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer le dossier "${folderName}" ?`)) {
@@ -162,6 +188,330 @@ export function FileList({
     );
   }
 
+  if (sortedFiles.length === 0 && searchTerm.trim()) {
+    return (
+      <div className="card">
+        <h2>Fichiers uploadés</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", marginTop: "1rem" }}>
+          <div className="sort-dropdown" style={{ position: "relative" }}>
+            <span style={{ position: "absolute", left: "0.5rem", top: "50%", transform: "translateY(-50%)", color: "#666", fontSize: "1rem" }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Rechercher par nom..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ 
+                padding: "0.5rem 0.75rem 0.5rem 2.25rem", 
+                borderRadius: "4px", 
+                border: "1px solid #ccc",
+                minWidth: "250px",
+                width: "300px",
+                fontSize: "0.8rem"
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <label style={{ fontWeight: 600 }}>Trier par:</label>
+            <div className="sort-dropdown" style={{ position: "relative" }}>
+              <button
+                onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                style={{
+                  padding: "0.25rem 0.5rem",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                  backgroundColor: "#ffffff",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  minWidth: "100px"
+                }}
+              >
+                {sortKey === "createdAt" && "📅"}
+                {sortKey === "name" && "📄"}
+                {sortKey === "size" && "💾"}
+                <span>
+                  {sortKey === "createdAt" && "Date"}
+                  {sortKey === "name" && "Nom"}
+                  {sortKey === "size" && "Taille"}
+                </span>
+                <span style={{ marginLeft: "auto", fontSize: "0.8em" }}>▼</span>
+              </button>
+              {isSortDropdownOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    zIndex: 1000,
+                    marginTop: "2px"
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setSortKey("createdAt");
+                      setIsSortDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: "none",
+                      backgroundColor: "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      textAlign: "left"
+                    }}
+                  >
+                    📅
+                    <span>Date</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSortKey("name");
+                      setIsSortDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: "none",
+                      backgroundColor: "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      textAlign: "left"
+                    }}
+                  >
+                    📄
+                    <span>Nom</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSortKey("size");
+                      setIsSortDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: "none",
+                      backgroundColor: "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      textAlign: "left"
+                    }}
+                  >
+                    💾
+                    <span>Taille</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              className="btn btn-secondary"
+              onClick={toggleSortOrder}
+              style={{ 
+                padding: "0.25rem 0.5rem", 
+                borderRadius: "4px", 
+                border: "1px solid #ccc",
+                backgroundColor: "#ffffff",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                fontSize: "1.2em",
+                lineHeight: 1,
+                color: "#333",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#f8f9fa";
+                e.currentTarget.style.borderColor = "#adb5bd";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#ffffff";
+                e.currentTarget.style.borderColor = "#ccc";
+              }}
+              title={sortOrder === "asc" ? "Tri ascendant" : "Tri descendant"}
+            >
+              {sortOrder === "asc" ? <ArrowUp size={20} color="#2563eb" /> : <ArrowDown size={20} color="#2563eb" />}
+            </button>
+          </div>
+        </div>
+        <p>Aucun fichier ne correspond à votre recherche "{searchTerm}"</p>
+      </div>
+    );
+  }
+
+  if (sortedFiles.length === 0 && searchTerm.trim()) {
+    return (
+      <div className="card">
+        <h2>Fichiers uploadés</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", marginTop: "1rem" }}>
+          <div className="sort-dropdown" style={{ position: "relative" }}>
+            <span style={{ position: "absolute", left: "0.5rem", top: "50%", transform: "translateY(-50%)", color: "#666", fontSize: "1rem" }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Rechercher par nom..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ 
+                padding: "0.5rem 0.75rem 0.5rem 2.25rem", 
+                borderRadius: "4px", 
+                border: "1px solid #ccc",
+                minWidth: "250px",
+                width: "300px",
+                fontSize: "0.8rem"
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <label style={{ fontWeight: 600 }}>Trier par:</label>
+            <div className="sort-dropdown" style={{ position: "relative" }}>
+              <button
+                onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                style={{
+                  padding: "0.25rem 0.5rem",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                  backgroundColor: "#ffffff",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  minWidth: "100px"
+                }}
+              >
+                {sortKey === "createdAt" && "📅"}
+                {sortKey === "name" && "📄"}
+                {sortKey === "size" && "💾"}
+                <span>
+                  {sortKey === "createdAt" && "Date"}
+                  {sortKey === "name" && "Nom"}
+                  {sortKey === "size" && "Taille"}
+                </span>
+                <span style={{ marginLeft: "auto", fontSize: "0.8em" }}>▼</span>
+              </button>
+              {isSortDropdownOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    zIndex: 1000,
+                    marginTop: "2px"
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setSortKey("createdAt");
+                      setIsSortDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: "none",
+                      backgroundColor: "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      textAlign: "left"
+                    }}
+                  >
+                    📅
+                    <span>Date</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSortKey("name");
+                      setIsSortDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: "none",
+                      backgroundColor: "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      textAlign: "left"
+                    }}
+                  >
+                    📄
+                    <span>Nom</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSortKey("size");
+                      setIsSortDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: "none",
+                      backgroundColor: "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      textAlign: "left"
+                    }}
+                  >
+                    💾
+                    <span>Taille</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              className="btn btn-secondary"
+              onClick={toggleSortOrder}
+              style={{ 
+                padding: "0.25rem 0.5rem", 
+                borderRadius: "4px", 
+                border: "1px solid #ccc",
+                backgroundColor: "#ffffff",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                fontSize: "1.2em",
+                lineHeight: 1,
+                color: "#333",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#f8f9fa";
+                e.currentTarget.style.borderColor = "#adb5bd";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#ffffff";
+                e.currentTarget.style.borderColor = "#ccc";
+              }}
+              title={sortOrder === "asc" ? "Tri ascendant" : "Tri descendant"}
+            >
+              {sortOrder === "asc" ? <ArrowUp size={20} color="#2563eb" /> : <ArrowDown size={20} color="#2563eb" />}
+            </button>
+          </div>
+        </div>
+        <p>Aucun fichier ne correspond à votre recherche "{searchTerm}"</p>
+      </div>
+    );
+  }
+
   return (
     <div className="card">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
@@ -211,7 +561,162 @@ export function FileList({
           )}
         </div>
       ) : (
-        <ul className="file-list">
+        <>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", marginTop: "1rem" }}>
+        <div className="sort-dropdown" style={{ position: "relative" }}>
+          <span style={{ position: "absolute", left: "0.5rem", top: "50%", transform: "translateY(-50%)", color: "#666", fontSize: "1rem" }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Rechercher par nom..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ 
+              padding: "0.5rem 0.75rem 0.5rem 2.25rem", 
+              borderRadius: "4px", 
+              border: "1px solid #ccc",
+              minWidth: "250px",
+              width: "300px",
+              fontSize: "0.9rem"
+            }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <label style={{ fontWeight: 600 }}>Trier par:</label>
+          <div className="sort-dropdown" style={{ position: "relative" }}>
+            <button
+              onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+              style={{
+                padding: "0.25rem 0.5rem",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+                backgroundColor: "#ffffff",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                minWidth: "100px"
+              }}
+            >
+              {sortKey === "createdAt" && "📅"}
+              {sortKey === "name" && "📄"}
+              {sortKey === "size" && "💾"}
+              <span>
+                {sortKey === "createdAt" && "Date"}
+                {sortKey === "name" && "Nom"}
+                {sortKey === "size" && "Taille"}
+              </span>
+              <span style={{ marginLeft: "auto", fontSize: "0.8em" }}>▼</span>
+            </button>
+            {isSortDropdownOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  zIndex: 1000,
+                  marginTop: "2px"
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setSortKey("createdAt");
+                    setIsSortDropdownOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    textAlign: "left"
+                  }}
+                >
+                  📅
+                  <span>Date</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSortKey("name");
+                    setIsSortDropdownOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    textAlign: "left"
+                  }}
+                >
+                  📄
+                  <span>Nom</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSortKey("size");
+                    setIsSortDropdownOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "none",
+                    backgroundColor: "transparent",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    textAlign: "left"
+                  }}
+                >
+                  💾
+                  <span>Taille</span>
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            className="btn btn-secondary"
+            onClick={toggleSortOrder}
+            style={{ 
+              padding: "0.25rem 0.5rem", 
+              borderRadius: "4px", 
+              border: "1px solid #ccc",
+              backgroundColor: "#ffffff",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              fontSize: "1.2em",
+              lineHeight: 1,
+              color: "#333",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#f8f9fa";
+              e.currentTarget.style.borderColor = "#adb5bd";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#ffffff";
+              e.currentTarget.style.borderColor = "#ccc";
+            }}
+            title={sortOrder === "asc" ? "Tri ascendant" : "Tri descendant"}
+          >
+            {sortOrder === "asc" ? <ArrowUp size={20} color="#000000" /> : <ArrowDown size={20} color="#000000" />}
+          </button>
+        </div>
+      </div>
+
+      <ul className="file-list">
           {/* Display folders first */}
           {folders.map((folder) => (
             <li 
@@ -276,7 +781,7 @@ export function FileList({
           ))}
 
           {/* Display files */}
-          {files.map((file) => (
+          {sortedFiles.map((file) => (
             <li 
               key={`file-${file.id}`} 
               className={`file-item ${draggedFileId === file.id ? 'dragging' : ''}`}
@@ -300,28 +805,33 @@ export function FileList({
                 <button
                   onClick={() => navigate(`/file/${file.id}`)}
                   className="btn btn-primary"
-                  style={{ marginRight: "0.5rem" }}
-                >
-                  Voir
+                  style={{ marginRight: "0.5rem", padding: "0.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  title="Voir le fichier"
+              >
+                  <Eye size={16} />
                 </button>
                 <a
                   href={getFullFileUrl(file.url, true)}
                   download={file.name}
                   className="btn btn-secondary"
-                  style={{ marginRight: "0.5rem", textDecoration: "none" }}
-                >
-                  Télécharger
+                  style={{ marginRight: "0.5rem", textDecoration: "none", padding: "0.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  title="Télécharger le fichier"
+              >
+                  <Download size={16} />
                 </a>
                 <button
                   onClick={() => handleDeleteFile(file.id)}
                   className="btn btn-danger"
-                >
-                  Supprimer
+                  style={{ padding: "0.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+                title="Supprimer le fichier"
+              >
+                  <Trash2 size={16} />
                 </button>
               </div>
             </li>
           ))}
         </ul>
+        </>
       )}
     </div>
   );
