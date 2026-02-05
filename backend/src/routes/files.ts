@@ -267,4 +267,59 @@ router.get("/config/info", async (_req: Request, res: Response) => {
   }
 });
 
+// PATCH move file to another folder
+router.patch("/:id/move", async (req: Request, res: Response) => {
+  try {
+    const { folderId } = req.body;
+
+    // Validate that file exists
+    const file = await prisma.file.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!file) {
+      res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    // Validate that folder exists if folderId is provided
+    if (folderId !== null && folderId !== undefined) {
+      const folder = await prisma.folder.findUnique({
+        where: { id: folderId },
+      });
+
+      if (!folder) {
+        res.status(404).json({ error: "Folder not found" });
+        return;
+      }
+    }
+
+    // Update file's folder
+    const updatedFile = await prisma.file.update({
+      where: { id: req.params.id },
+      data: {
+        folderId: folderId === null ? null : folderId,
+      },
+      include: {
+        folder: true,
+      },
+    });
+
+    loggingService.logCustom(
+      "file_moved",
+      {
+        fileId: updatedFile.id,
+        fileName: updatedFile.name,
+        folderId: folderId || "root",
+      },
+      req,
+    );
+
+    res.json(updatedFile);
+  } catch (error) {
+    console.error("Error moving file:", error);
+    res.status(500).json({ error: "Failed to move file" });
+  }
+});
+
 export default router;

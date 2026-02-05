@@ -96,6 +96,26 @@ export async function deleteFile(id: string): Promise<void> {
   }
 }
 
+export async function moveFile(
+  fileId: string,
+  folderId: string | null
+): Promise<FileData> {
+  const response = await fetch(`${API_URL}/${fileId}/move`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ folderId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to move file");
+  }
+
+  return response.json();
+}
+
 export async function downloadFile(file: FileData): Promise<void> {
   try {
     // Create a temporary link to trigger download

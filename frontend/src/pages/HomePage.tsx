@@ -67,6 +67,16 @@ export function HomePage() {
         setFolders((prev) => [...prev, folder]);
     };
 
+    const handleFileMoved = (fileId: string) => {
+        // Remove file from current view since it was moved
+        setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    };
+
+    const handleFolderMoved = (folderId: string) => {
+        // Remove folder from current view since it was moved
+        setFolders((prev) => prev.filter((f) => f.id !== folderId));
+    };
+
   return (
     <div className="container">
       <div className="logs-header">
@@ -97,11 +107,15 @@ export function HomePage() {
                     files={files} 
                     folders={folders}
                     currentPath={currentPath}
+                    currentFolderId={currentFolderId}
+                    parentFolderId={parentFolderId}
                     onFileDeleted={handleFileDeleted}
                     onFolderDeleted={handleFolderDeleted}
                     onFolderClick={handleFolderClick}
                     onNavigateUp={handleNavigateUp}
                     canNavigateUp={currentFolderId !== null}
+                    onFileMoved={handleFileMoved}
+                    onFolderMoved={handleFolderMoved}
                 />
             )}
         </div>
