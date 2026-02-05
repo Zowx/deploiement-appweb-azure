@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getLogs, getLogStats, LogEntry, LogStats } from "../api/logs";
+import { ArrowLeft, RefreshCw, Pause, Play } from "lucide-react";
 
 const ACTION_LABELS: Record<
   string,
@@ -73,15 +74,16 @@ export function LogsPage() {
   return (
     <div className="container">
       <div className="logs-header">
-        <Link to="/" className="btn btn-secondary">
-          ← Retour
+        <Link to="/" className="btn btn-secondary" title="Retour à l'accueil">
+          <ArrowLeft size={16} />
         </Link>
         <h1>Logs FaaS</h1>
         <button
           className={`btn ${autoRefresh ? "btn-primary" : "btn-secondary"}`}
           onClick={() => setAutoRefresh(!autoRefresh)}
+          title={autoRefresh ? "Mettre en pause l'actualisation automatique" : "Activer l'actualisation automatique"}
         >
-          {autoRefresh ? "⏸️ Pause" : "▶️ Auto-refresh"}
+          {autoRefresh ? <Pause size={16} /> : <Play size={16} />}
         </button>
       </div>
 
@@ -140,8 +142,8 @@ export function LogsPage() {
               ))}
             </select>
           </label>
-          <button className="btn btn-primary" onClick={fetchData}>
-            Rafraichir
+          <button className="btn btn-primary" onClick={fetchData} title="Rafraîchir les logs">
+            <RefreshCw size={16} />
           </button>
         </div>
       </div>
