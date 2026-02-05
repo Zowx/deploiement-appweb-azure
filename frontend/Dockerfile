@@ -17,16 +17,18 @@ RUN npm ci --prefer-offline
 COPY . .
 RUN npm run build
 
-# Production stage - using serve
-FROM node:20-alpine AS runner
+# Production stage - using node + serve
+FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# Install serve
+# Install serve globally
 RUN npm install -g serve
 
 # Copy built files
 COPY --from=builder /app/dist ./dist
+
+ENV PORT=8080
 
 EXPOSE 8080
 
