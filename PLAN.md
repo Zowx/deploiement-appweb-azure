@@ -36,7 +36,7 @@ Développer et déployer une application web complète suivant une architecture 
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐  │
 │  │   Frontend   │    │   Backend    │    │   PostgreSQL     │  │
 │  │  App Service │───▶│  App Service │───▶│  Flexible Server │  │
-│  │   (React)    │    │  (FastAPI)   │    │                  │  │
+│  │   (React)    │    │  (Express)   │    │                  │  │
 │  └──────────────┘    └──────┬───────┘    └──────────────────┘  │
 │                             │                                   │
 │                             ▼                                   │

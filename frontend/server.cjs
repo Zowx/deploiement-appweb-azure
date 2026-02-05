@@ -1,15 +1,29 @@
 const express = require('express');
 const path = require('path');
+const compression = require('compression');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
-app.use(express.static(path.join(__dirname, 'dist')));
+// Gzip compression
+app.use(compression());
 
-app.get('*', (req, res) => {
+// Serve static files from dist folder
+app.use(express.static(path.join(__dirname, 'dist'), {
+  maxAge: '1y',
+  etag: true
+}));
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// SPA fallback - serve index.html for all other routes (Express v5 syntax)
+app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(port, () => {
-  console.log(`Frontend server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`Frontend server running on port ${PORT}`);
 });

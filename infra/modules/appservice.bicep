@@ -52,6 +52,7 @@ resource frontendApp 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       linuxFxVersion: 'NODE|20-lts'
+      appCommandLine: 'node server.cjs'
       appSettings: [
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'

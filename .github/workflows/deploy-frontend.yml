@@ -11,14 +11,12 @@ on:
 permissions:
   id-token: write
   contents: read
-  packages: write
 
 env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
   AZURE_WEBAPP_NAME: app-cloudazure-frontend-dev
-  REGISTRY: ghcr.io
 
 jobs:
   build-and-deploy:
@@ -28,31 +26,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set lowercase image name
-        id: image
-        run: echo "name=$(echo ${{ github.repository_owner }}/cloudazure-frontend | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.sha }},${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:latest
-          build-args: |
-            VITE_API_URL=https://app-cloudazure-backend-dev.azurewebsites.net/api/files
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        env:
+          VITE_API_URL: https://app-cloudazure-backend-dev.azurewebsites.net/api/files
+        run: npm run build
+
+      - name: Prepare deployment package
+        working-directory: ./frontend
+        run: |
+          # Copy server and package files to dist for deployment
+          cp server.cjs dist/
+          cp package.json dist/
+          cp package-lock.json dist/
+          # Install production dependencies in dist folder
+          cd dist
+          npm ci --omit=dev
 
       - name: Azure Login
         uses: azure/login@v2
@@ -65,4 +65,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.sha }}
+          package: ./frontend/dist
