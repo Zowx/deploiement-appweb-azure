@@ -173,7 +173,7 @@ flowchart TB
 
 | Critère | Choix | Justification |
 |---------|-------|---------------|
-| **Langage** | Bicep | Syntaxe native Azure, plus lisible que ARM JSON, transpilation automatique |
+| **Langage** | Bicep | Imposé pour le projet |
 | **Organisation** | Modules | Code réutilisable et maintenable, séparation des préoccupations |
 | **Paramètres** | .bicepparam | Séparation environnements dev/prod, support des secrets via `readEnvironmentVariable()` |
 
