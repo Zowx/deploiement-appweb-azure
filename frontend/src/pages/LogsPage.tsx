@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getLogs, getLogStats, LogEntry, LogStats } from "../api/logs";
-import { ArrowLeft, RefreshCw, Pause, Play } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 
 const ACTION_LABELS: Record<
   string,
@@ -81,9 +81,8 @@ export function LogsPage() {
         <button
           className={`btn ${autoRefresh ? "btn-primary" : "btn-secondary"}`}
           onClick={() => setAutoRefresh(!autoRefresh)}
-          title={autoRefresh ? "Mettre en pause l'actualisation automatique" : "Activer l'actualisation automatique"}
         >
-          {autoRefresh ? <Pause size={16} /> : <Play size={16} />}
+          {autoRefresh ? "⏸️ Pause" : "▶️ Auto-refresh"}
         </button>
       </div>
 
