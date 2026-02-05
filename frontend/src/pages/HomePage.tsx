@@ -54,7 +54,14 @@ export function HomePage() {
   }, [currentFolderId]);
 
   const handleUploadComplete = (file: FileData) => {
-    setFiles((prev) => [file, ...prev]);
+    // Vérifier si le fichier existe déjà avant de l'ajouter
+    // (le SSE peut l'avoir déjà ajouté)
+    setFiles((prev) => {
+      if (prev.some((f) => f.id === file.id)) {
+        return prev;
+      }
+      return [file, ...prev];
+    });
   };
 
   const handleFileDeleted = (id: string) => {
