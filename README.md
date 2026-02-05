@@ -479,7 +479,6 @@ L'application supporte une arborescence hiérarchique de dossiers avec chemins n
 ```mermaid
 erDiagram
     Folder ||--o{ File : contains
-    Folder ||--o{ Folder : "parent/children"
 
     Folder {
         uuid id PK
