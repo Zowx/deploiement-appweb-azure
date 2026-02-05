@@ -371,3 +371,24 @@ h1 {
 .nav-link:hover {
     text-decoration: underline;
 }
+
+/* Drag and Drop Styles */
+.file-item.dragging {
+    opacity: 0.5;
+    cursor: move;
+}
+
+.file-item.drag-over {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+.file-item[draggable="true"] {
+    cursor: move;
+}
+
+.file-item[draggable="true"]:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}

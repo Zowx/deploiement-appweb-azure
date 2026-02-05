@@ -127,3 +127,23 @@ export async function renameFolder(
 
   return response.json();
 }
+
+export async function moveFolder(
+  folderId: string,
+  parentId: string | null
+): Promise<FolderData> {
+  const response = await fetch(`${FOLDERS_API_URL}/${folderId}/move`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ parentId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to move folder");
+  }
+
+  return response.json();
+}

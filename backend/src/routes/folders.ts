@@ -341,4 +341,107 @@ router.patch("/:id", async (req: Request, res: Response) => {
   }
 });
 
+// PATCH move folder to another parent folder
+router.patch("/:id/move", async (req: Request, res: Response) => {
+  try {
+    const { parentId } = req.body;
+
+    const folder = await prisma.folder.findUnique({
+      where: { id: req.params.id },
+      include: {
+        parent: true,
+        children: true,
+      },
+    });
+
+    if (!folder) {
+      res.status(404).json({ error: "Folder not found" });
+      return;
+    }
+
+    // Validate new parent folder exists if parentId is provided
+    let newParent = null;
+    if (parentId !== null && parentId !== undefined) {
+      newParent = await prisma.folder.findUnique({
+        where: { id: parentId },
+      });
+
+      if (!newParent) {
+        res.status(404).json({ error: "Target folder not found" });
+        return;
+      }
+
+      // Prevent moving a folder into itself or its own descendants
+      if (newParent.path.startsWith(folder.path + "/") || newParent.id === folder.id) {
+        res.status(400).json({ error: "Cannot move a folder into itself or its descendants" });
+        return;
+      }
+    }
+
+    // Calculate new path
+    const newPath = newParent ? newParent.path + "/" + folder.name : "/" + folder.name;
+
+    // Check if a folder with same name already exists at destination
+    const existingFolder = await prisma.folder.findUnique({
+      where: { path: newPath },
+    });
+
+    if (existingFolder && existingFolder.id !== folder.id) {
+      res.status(409).json({ error: "A folder with this name already exists in the destination" });
+      return;
+    }
+
+    // Update folder and all children paths
+    const oldPath = folder.path;
+    const updatedFolder = await prisma.folder.update({
+      where: { id: req.params.id },
+      data: {
+        parentId: parentId === null ? null : parentId,
+        path: newPath,
+      },
+      include: {
+        parent: true,
+        _count: {
+          select: {
+            files: true,
+            children: true,
+          },
+        },
+      },
+    });
+
+    // Update all descendants paths
+    const allDescendants = await prisma.folder.findMany({
+      where: {
+        path: {
+          startsWith: oldPath + "/",
+        },
+      },
+    });
+
+    for (const descendant of allDescendants) {
+      const newDescendantPath = descendant.path.replace(oldPath, newPath);
+      await prisma.folder.update({
+        where: { id: descendant.id },
+        data: { path: newDescendantPath },
+      });
+    }
+
+    loggingService.logCustom(
+      "folder_moved",
+      {
+        folderId: updatedFolder.id,
+        folderName: updatedFolder.name,
+        parentId: parentId || "root",
+      },
+      req,
+    );
+
+    res.json(updatedFolder);
+  } catch (error) {
+    console.error("Error moving folder:", error);
+    res.status(500).json({ error: "Failed to move folder" });
+  }
+});
+
 export default router;
