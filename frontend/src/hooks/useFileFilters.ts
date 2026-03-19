@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 
-export type SortKey = "name" | "size" | "createdAt";
+export type SortKey = "name" | "size" | "createdAt" | "visibility";
 export type SortOrder = "asc" | "desc";
 
 export interface FileFiltersState {
@@ -16,7 +16,7 @@ export interface FileFiltersActions {
 }
 
 export interface UseFileFiltersReturn extends FileFiltersState, FileFiltersActions {
-  filteredAndSortedFiles: <T extends { name: string; size: number; createdAt: string }>(
+  filteredAndSortedFiles: <T extends { name: string; size: number; createdAt: string; ownerId?: string | null }>(
     files: T[]
   ) => T[];
 }
@@ -31,7 +31,7 @@ export function useFileFilters(): UseFileFiltersReturn {
   };
 
   const filteredAndSortedFiles = useMemo(
-    () => <T extends { name: string; size: number; createdAt: string }>(files: T[]) => {
+    () => <T extends { name: string; size: number; createdAt: string; ownerId?: string | null }>(files: T[]) => {
       let filtered = [...files];
 
       // Filtrage par recherche
@@ -48,6 +48,10 @@ export function useFileFilters(): UseFileFiltersReturn {
           cmp = a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
         } else if (sortKey === "size") {
           cmp = a.size - b.size;
+        } else if (sortKey === "visibility") {
+          const aIsPublic = !a.ownerId;
+          const bIsPublic = !b.ownerId;
+          cmp = Number(aIsPublic) - Number(bIsPublic);
         } else {
           // createdAt
           cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
