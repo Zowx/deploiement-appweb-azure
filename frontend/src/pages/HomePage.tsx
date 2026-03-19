@@ -160,6 +160,7 @@ export function HomePage() {
         onUploadComplete={handleUploadComplete}
         currentFolderId={currentFolderId}
         currentPath={currentPath}
+        isLoggedIn={!!currentUser}
       />
 
       {error && <div className="error">{error}</div>}

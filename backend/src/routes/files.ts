@@ -263,6 +263,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 
     // Persist to database - attach owner
     const user = getUser(req);
+    const isPublic = req.body.isPublic === "true" || req.body.isPublic === true;
     const url = `/api/files/download/${storageFileName}`;
 
     const file = await prisma.file.create({
@@ -273,7 +274,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
         size,
         mimeType: mimetype,
         folderId,
-        ...(user ? { owner: { connect: { id: user.id } } } : {}),
+        ...(user && !isPublic ? { owner: { connect: { id: user.id } } } : {}),
       },
       include: { folder: true },
     });

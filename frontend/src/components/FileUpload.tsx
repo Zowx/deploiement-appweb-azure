@@ -5,12 +5,19 @@ interface FileUploadProps {
   onUploadComplete: (file: FileData) => void;
   currentFolderId?: string | null;
   currentPath?: string;
+  isLoggedIn?: boolean;
 }
 
-export function FileUpload({ onUploadComplete, currentFolderId, currentPath = "/" }: FileUploadProps) {
+export function FileUpload({
+  onUploadComplete,
+  currentFolderId,
+  currentPath = "/",
+  isLoggedIn = false,
+}: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +34,12 @@ export function FileUpload({ onUploadComplete, currentFolderId, currentPath = "/
     setProgress(0);
 
     try {
-      const uploadedFile = await uploadFile(file, setProgress, currentFolderId);
+      const uploadedFile = await uploadFile(
+        file,
+        setProgress,
+        currentFolderId,
+        isPublic,
+      );
       onUploadComplete(uploadedFile);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -44,7 +56,13 @@ export function FileUpload({ onUploadComplete, currentFolderId, currentPath = "/
     <div className="card">
       <h2>Uploader un fichier</h2>
       {currentPath && currentPath !== "/" && (
-        <p style={{ fontSize: "0.875rem", color: "#666", marginBottom: "0.5rem" }}>
+        <p
+          style={{
+            fontSize: "0.875rem",
+            color: "#666",
+            marginBottom: "0.5rem",
+          }}
+        >
           Dossier actuel : <strong>{currentPath}</strong>
         </p>
       )}
@@ -56,6 +74,39 @@ export function FileUpload({ onUploadComplete, currentFolderId, currentPath = "/
           className="file-input"
           disabled={uploading}
         />
+        {isLoggedIn && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              margin: "0.5rem 0",
+            }}
+          >
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                disabled={uploading}
+              />
+              Fichier public
+            </label>
+            <span style={{ fontSize: "0.8rem", color: "#888" }}>
+              {isPublic
+                ? "(visible par tous)"
+                : "(visible uniquement par vous)"}
+            </span>
+          </div>
+        )}
         {uploading && (
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${progress}%` }} />

@@ -58,11 +58,15 @@ export async function uploadFile(
   file: File,
   onProgress?: (progress: number) => void,
   folderId?: string | null,
+  isPublic?: boolean,
 ): Promise<FileData> {
   const formData = new FormData();
   formData.append("file", file);
   if (folderId) {
     formData.append("folderId", folderId);
+  }
+  if (isPublic) {
+    formData.append("isPublic", "true");
   }
 
   const xhr = new XMLHttpRequest();
