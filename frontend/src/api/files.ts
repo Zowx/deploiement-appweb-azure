@@ -17,13 +17,16 @@ const API_URL = import.meta.env.VITE_API_URL || "/api/files";
 
 // Get the base URL for the API (handles both dev and production)
 function getApiBaseUrl(): string {
-  // Use VITE_API_URL if set, extracting the base URL
-  if (import.meta.env.VITE_API_URL) {
-    // Extract base URL from full API URL (e.g., https://backend.com/api/files -> https://backend.com)
-    const url = new URL(import.meta.env.VITE_API_URL);
-    return url.origin;
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    try {
+      const url = new URL(apiUrl);
+      return url.origin;
+    } catch {
+      // Relative URL (e.g. /api/files) — use current origin
+      return window.location.origin;
+    }
   }
-  // In development, use the backend URL or default to localhost:3001
   return import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 }
 
@@ -98,7 +101,7 @@ export async function deleteFile(id: string): Promise<void> {
 
 export async function moveFile(
   fileId: string,
-  folderId: string | null
+  folderId: string | null,
 ): Promise<FileData> {
   const response = await fetch(`${API_URL}/${fileId}/move`, {
     method: "PATCH",
