@@ -43,7 +43,7 @@ export async function getLogs(params?: {
   if (params?.limit) searchParams.append("limit", String(params.limit));
 
   const url = `${API_BASE}/api/logs${searchParams.toString() ? `?${searchParams}` : ""}`;
-  const response = await fetch(url);
+  const response = await fetch(url, { credentials: "include" });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -55,7 +55,7 @@ export async function getLogs(params?: {
 
 export async function getLogStats(date?: string): Promise<LogStats> {
   const url = `${API_BASE}/api/logs/stats${date ? `?date=${date}` : ""}`;
-  const response = await fetch(url);
+  const response = await fetch(url, { credentials: "include" });
 
   if (!response.ok) {
     throw new Error("Failed to fetch stats");
@@ -75,6 +75,7 @@ export async function logActivity(activity: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(activity),
+    credentials: "include",
   });
 
   if (!response.ok) {

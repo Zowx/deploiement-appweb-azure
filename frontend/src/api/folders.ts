@@ -45,7 +45,7 @@ const API_URL = import.meta.env.VITE_API_URL || "/api/files";
 const FOLDERS_API_URL = API_URL.replace("/files", "/folders");
 
 export async function getFolders(): Promise<FolderData[]> {
-  const response = await fetch(FOLDERS_API_URL);
+  const response = await fetch(FOLDERS_API_URL, { credentials: "include" });
   if (!response.ok) {
     throw new Error("Failed to fetch folders");
   }
@@ -53,7 +53,9 @@ export async function getFolders(): Promise<FolderData[]> {
 }
 
 export async function getFolder(id: string): Promise<FolderContents> {
-  const response = await fetch(`${FOLDERS_API_URL}/${id}`);
+  const response = await fetch(`${FOLDERS_API_URL}/${id}`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch folder");
   }
@@ -62,7 +64,9 @@ export async function getFolder(id: string): Promise<FolderContents> {
 
 export async function getFolderByPath(path: string): Promise<FolderContents> {
   const encodedPath = encodeURIComponent(path.replace(/^\//, ""));
-  const response = await fetch(`${FOLDERS_API_URL}/path/${encodedPath}`);
+  const response = await fetch(`${FOLDERS_API_URL}/path/${encodedPath}`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch folder");
   }
@@ -70,7 +74,9 @@ export async function getFolderByPath(path: string): Promise<FolderContents> {
 }
 
 export async function getRootContents(): Promise<RootContents> {
-  const response = await fetch(`${FOLDERS_API_URL}/root/contents`);
+  const response = await fetch(`${FOLDERS_API_URL}/root/contents`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch root contents");
   }
@@ -87,6 +93,7 @@ export async function createFolder(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ name, parentId }),
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -100,6 +107,7 @@ export async function createFolder(
 export async function deleteFolder(id: string): Promise<void> {
   const response = await fetch(`${FOLDERS_API_URL}/${id}`, {
     method: "DELETE",
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -118,6 +126,7 @@ export async function renameFolder(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ name }),
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -130,7 +139,7 @@ export async function renameFolder(
 
 export async function moveFolder(
   folderId: string,
-  parentId: string | null
+  parentId: string | null,
 ): Promise<FolderData> {
   const response = await fetch(`${FOLDERS_API_URL}/${folderId}/move`, {
     method: "PATCH",
@@ -138,6 +147,7 @@ export async function moveFolder(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ parentId }),
+    credentials: "include",
   });
 
   if (!response.ok) {
