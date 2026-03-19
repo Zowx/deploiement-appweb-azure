@@ -28,7 +28,7 @@ function getApiBaseUrl(): string {
       return window.location.origin;
     }
   }
-  return import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+  return import.meta.env.VITE_BACKEND_URL || window.location.origin;
 }
 
 // Convert relative file URL to absolute URL
@@ -45,7 +45,7 @@ export function getFullFileUrl(
 
 export async function getFiles(folderId?: string | null): Promise<FileData[]> {
   const url = folderId ? `${API_URL}?folderId=${folderId}` : API_URL;
-  const response = await fetch(url, { credentials: 'include' });
+  const response = await fetch(url, { credentials: "include" });
   if (!response.ok) {
     if (response.status === 401) throw new Error("Unauthorized");
     if (response.status === 403) throw new Error("Forbidden");
@@ -94,7 +94,10 @@ export async function uploadFile(
 }
 
 export async function deleteFile(id: string): Promise<void> {
-  const response = await fetch(`${API_URL}/${id}`, { method: "DELETE", credentials: 'include' });
+  const response = await fetch(`${API_URL}/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
   if (!response.ok) {
     if (response.status === 401) throw new Error("Unauthorized");
     if (response.status === 403) throw new Error("Forbidden");
@@ -112,7 +115,7 @@ export async function moveFile(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ folderId }),
-    credentials: 'include',
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -126,16 +129,19 @@ export async function moveFile(
 }
 
 export async function downloadFile(file: FileData): Promise<void> {
-  try {
-    // Create a temporary link to trigger download
-    const link = document.createElement("a");
-    link.href = file.url;
-    link.download = file.name;
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } catch (error) {
+  const url = getFullFileUrl(file.url, true);
+  const response = await fetch(url, { credentials: "include" });
+  if (!response.ok) {
     throw new Error("Failed to download file");
   }
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = file.name;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(blobUrl);
 }
