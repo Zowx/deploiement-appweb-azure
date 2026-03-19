@@ -16,9 +16,16 @@ param backendFqdn string
 @description('Health probe path')
 param healthProbePath string = '/health'
 
+@description('Rate limit requests per minute per IP (0 = disabled)')
+param rateLimitRequestsPerMinute int = 100
+
+@description('Blocked country codes (ISO 3166-1 alpha-2), e.g. ["CN","RU"]')
+param blockedCountryCodes array = []
+
 var appGatewayName = 'appgw-${projectName}-${environment}'
 var publicIpName = 'pip-appgw-${projectName}-${environment}'
 var dnsLabel = 'appgw-${projectName}-${environment}'
+var wafPolicyName = 'wafpol-${projectName}-${environment}'
 
 resource publicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
   name: publicIpName
@@ -32,6 +39,106 @@ resource publicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
     dnsSettings: {
       domainNameLabel: dnsLabel
     }
+  }
+}
+
+// WAF Policy with custom rules (rate limiting, geo-filtering)
+resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies@2024-05-01' = {
+  name: wafPolicyName
+  location: location
+  properties: {
+    policySettings: {
+      requestBodyCheck: true
+      maxRequestBodySizeInKb: 128
+      fileUploadLimitInMb: 100
+      state: 'Enabled'
+      mode: 'Prevention'
+    }
+    managedRules: {
+      managedRuleSets: [
+        {
+          ruleSetType: 'OWASP'
+          ruleSetVersion: '3.2'
+        }
+      ]
+    }
+    customRules: concat(rateLimitRequestsPerMinute > 0 ? [
+        {
+          name: 'RateLimitPerIP'
+          priority: 10
+          ruleType: 'RateLimitRule'
+          rateLimitDuration: 'OneMin'
+          rateLimitThreshold: rateLimitRequestsPerMinute
+          matchConditions: [
+            {
+              matchVariables: [
+                {
+                  variableName: 'RemoteAddr'
+                }
+              ]
+              operator: 'IPMatch'
+              negationConditon: true
+              matchValues: [
+                '127.0.0.1'
+              ]
+            }
+          ]
+          groupByUserSession: [
+            {
+              groupByVariables: [
+                {
+                  variableName: 'ClientAddr'
+                }
+              ]
+            }
+          ]
+          action: 'Block'
+        }
+      ] : [], !empty(blockedCountryCodes) ? [
+        {
+          name: 'GeoFilter'
+          priority: 20
+          ruleType: 'MatchRule'
+          matchConditions: [
+            {
+              matchVariables: [
+                {
+                  variableName: 'RemoteAddr'
+                }
+              ]
+              operator: 'GeoMatch'
+              matchValues: blockedCountryCodes
+            }
+          ]
+          action: 'Block'
+        }
+      ] : [], [
+        {
+          name: 'BlockBadBots'
+          priority: 30
+          ruleType: 'MatchRule'
+          matchConditions: [
+            {
+              matchVariables: [
+                {
+                  variableName: 'RequestHeaders'
+                  selector: 'User-Agent'
+                }
+              ]
+              operator: 'Contains'
+              transforms: ['Lowercase']
+              matchValues: [
+                'sqlmap'
+                'nikto'
+                'nmap'
+                'masscan'
+                'dirbuster'
+              ]
+            }
+          ]
+          action: 'Block'
+        }
+      ])
   }
 }
 
@@ -150,15 +257,8 @@ resource appGateway 'Microsoft.Network/applicationGateways@2024-05-01' = {
         }
       }
     ]
-    webApplicationFirewallConfiguration: {
-      enabled: true
-      firewallMode: 'Prevention'
-      ruleSetType: 'OWASP'
-      ruleSetVersion: '3.2'
-      disabledRuleGroups: []
-      requestBodyCheck: true
-      maxRequestBodySizeInKb: 128
-      fileUploadLimitInMb: 100
+    firewallPolicy: {
+      id: wafPolicy.id
     }
   }
 }

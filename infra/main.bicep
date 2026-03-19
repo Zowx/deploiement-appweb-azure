@@ -19,6 +19,9 @@ param dbAdminPassword string
 @description('Admin email for autoscale notifications')
 param notificationEmail string = 'admin@${projectName}.com'
 
+@description('Enable Azure Front Door (not available on Free/Student subscriptions)')
+param enableFrontDoor bool = false
+
 var resourceGroupName = 'rg-${projectName}-${environment}'
 var functionResourceGroupName = 'rg-${projectName}-func-${environment}'
 var keyVaultName = 'kv-${projectName}-${environment}'
@@ -107,6 +110,30 @@ module appGateway 'modules/appgateway.bicep' = {
   }
 }
 
+module monitoring 'modules/monitoring.bicep' = {
+  name: 'monitoring-deployment'
+  scope: rg
+  params: {
+    location: location
+    environment: environment
+    projectName: projectName
+    backendAppId: appService.outputs.backendAppId
+    appServicePlanId: appService.outputs.appServicePlanId
+    appGatewayId: appGateway.outputs.appGatewayId
+    alertEmail: notificationEmail
+  }
+}
+
+module frontDoor 'modules/frontdoor.bicep' = if (enableFrontDoor) {
+  name: 'frontdoor-deployment'
+  scope: rg
+  params: {
+    environment: environment
+    projectName: projectName
+    primaryBackendFqdn: appService.outputs.backendFqdn
+  }
+}
+
 // Construct database connection string securely (not exposed in module outputs)
 var databaseConnectionString = 'postgresql://${dbAdminLogin}:${dbAdminPassword}@${database.outputs.serverFqdn}:5432/${projectName}db?sslmode=require'
 
@@ -165,3 +192,5 @@ output vnetName string = vnet.outputs.vnetName
 output appGatewayName string = appGateway.outputs.appGatewayName
 output appGatewayPublicIp string = appGateway.outputs.publicIpAddress
 output appGatewayFqdn string = appGateway.outputs.publicIpFqdn
+output frontDoorEndpoint string = enableFrontDoor ? frontDoor.outputs.frontDoorEndpoint : 'disabled'
+output monitoringDashboard string = monitoring.outputs.dashboardName

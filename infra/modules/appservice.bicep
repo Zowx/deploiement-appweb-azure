@@ -157,6 +157,7 @@ output backendFqdn string = backendApp.properties.defaultHostName
 output frontendAppName string = frontendApp.name
 output frontendAppUrl string = 'https://${frontendApp.properties.defaultHostName}'
 output frontendPrincipalId string = frontendApp.identity.principalId
+output backendAppId string = backendApp.id
 output backendAppName string = backendApp.name
 output backendAppUrl string = 'https://${backendApp.properties.defaultHostName}'
 output backendPrincipalId string = backendApp.identity.principalId
