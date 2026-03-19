@@ -749,6 +749,29 @@ npm install
 npm run dev
 ```
 
+### Authentification Google (OAuth)
+
+Pour activer Google OAuth, configurez ces variables d'environnement pour le backend (ou utilisez `.env` en dev) :
+
+- `GOOGLE_CLIENT_ID` — Client ID fourni par Google Cloud
+- `GOOGLE_CLIENT_SECRET` — Client secret fourni par Google Cloud
+- `BASE_URL` — URL de base du backend (ex: `http://localhost:3001`)
+- `FRONTEND_URL` — URL du frontend (ex: `http://localhost:5173`)
+- `SESSION_SECRET` — secret pour `express-session`
+
+Exemple (local `.env`):
+
+```
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+BASE_URL=http://localhost:3001
+FRONTEND_URL=http://localhost:5173
+SESSION_SECRET=change_this_in_prod
+```
+
+En dev, laissez l'application en mode *Testing* dans la Google Cloud Console et ajoutez vos emails comme *Test users*. Pour la production, publiez l'application en *External* (Google peut demander une vérification selon les scopes demandés).
+
+
 ---
 
 ## Déploiement Azure

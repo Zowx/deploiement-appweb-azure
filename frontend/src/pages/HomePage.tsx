@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FileUpload } from "../components/FileUpload";
 import { FileList } from "../components/FileList";
+import AuthButton from "../components/AuthButton";
 import { FileData } from "../api/files";
 import { FolderData, getFolder, getRootContents } from "../api/folders";
 import { useSSE } from "../api/sse";
@@ -132,9 +133,12 @@ export function HomePage() {
     <div className="container">
       <div className="logs-header">
         <h1>Cloud Azure - File Manager</h1>
-        <Link to="/logs" className="btn btn-secondary">
-          📊 Logs FaaS
-        </Link>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link to="/logs" className="btn btn-secondary">
+            📊 Logs FaaS
+          </Link>
+          <AuthButton />
+        </div>
       </div>
 
       <FileUpload
