@@ -9,6 +9,20 @@ interface SSEClient {
 class SSEService {
   private clients: Map<string, SSEClient> = new Map();
   private clientIdCounter = 0;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    // Send heartbeat every 25 seconds to keep connections alive through proxies/load balancers
+    this.heartbeatInterval = setInterval(() => {
+      this.clients.forEach((client) => {
+        try {
+          client.res.write(":heartbeat\n\n");
+        } catch {
+          this.removeClient(client.id);
+        }
+      });
+    }, 25_000);
+  }
 
   addClient(res: Response, folderId: string | null): string {
     const clientId = `client_${++this.clientIdCounter}_${Date.now()}`;
@@ -16,6 +30,7 @@ class SSEService {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
     this.clients.set(clientId, { id: clientId, res, folderId });
