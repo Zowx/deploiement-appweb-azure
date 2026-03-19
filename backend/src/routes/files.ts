@@ -292,7 +292,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
   } catch (error) {
     const msg = (error as Error).message;
     console.error("[FILES] POST / upload failed:", msg);
-    res.status(500).json({ error: "Failed to upload file", details: msg });
+    res.status(500).json({ error: "Failed to upload file" });
   }
 });
 
