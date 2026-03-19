@@ -39,8 +39,6 @@ jobs:
 
       - name: Build frontend
         working-directory: ./frontend
-        env:
-          VITE_API_URL: https://app-cloudazure-backend-dev.azurewebsites.net/api/files
         run: npm run build
 
       - name: Prepare deployment package

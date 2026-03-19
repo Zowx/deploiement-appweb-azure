@@ -65,8 +65,8 @@ resource frontendApp 'Microsoft.Web/sites@2024-04-01' = {
           value: '~20'
         }
         {
-          name: 'VITE_API_URL'
-          value: 'https://${backendAppName}.azurewebsites.net/api/files'
+          name: 'BACKEND_HOST'
+          value: '${backendAppName}.azurewebsites.net'
         }
       ]
     }
@@ -91,6 +91,14 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
           priority: 100
           name: 'AllowAppGateway'
           description: 'Allow traffic from Application Gateway subnet'
+        }
+        {
+          ipAddress: 'AzureCloud'
+          action: 'Allow'
+          priority: 200
+          name: 'AllowAzureServices'
+          tag: 'ServiceTag'
+          description: 'Allow traffic from Azure services (frontend proxy)'
         }
         {
           ipAddress: 'Any'

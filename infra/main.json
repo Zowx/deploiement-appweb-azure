@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "12527643626695453578"
+      "templateHash": "16389773938771576011"
     }
   },
   "parameters": {
@@ -602,7 +602,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "6366530678489609624"
+              "templateHash": "6255061079018269153"
             }
           },
           "parameters": {
@@ -721,8 +721,8 @@
                       "value": "~20"
                     },
                     {
-                      "name": "VITE_API_URL",
-                      "value": "[format('https://{0}.azurewebsites.net/api/files', variables('backendAppName'))]"
+                      "name": "BACKEND_HOST",
+                      "value": "[format('{0}.azurewebsites.net', variables('backendAppName'))]"
                     }
                   ]
                 },
@@ -744,7 +744,7 @@
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
                 "siteConfig": {
                   "linuxFxVersion": "DOCKER|ghcr.io/zowx/cloudazure-backend:latest",
-                  "ipSecurityRestrictions": "[if(not(empty(parameters('appGatewaySubnetId'))), createArray(createObject('vnetSubnetResourceId', parameters('appGatewaySubnetId'), 'action', 'Allow', 'priority', 100, 'name', 'AllowAppGateway', 'description', 'Allow traffic from Application Gateway subnet'), createObject('ipAddress', 'Any', 'action', 'Deny', 'priority', 2147483647, 'name', 'DenyAll', 'description', 'Deny all other traffic')), createArray())]",
+                  "ipSecurityRestrictions": "[if(not(empty(parameters('appGatewaySubnetId'))), createArray(createObject('vnetSubnetResourceId', parameters('appGatewaySubnetId'), 'action', 'Allow', 'priority', 100, 'name', 'AllowAppGateway', 'description', 'Allow traffic from Application Gateway subnet'), createObject('ipAddress', 'AzureCloud', 'action', 'Allow', 'priority', 200, 'name', 'AllowAzureServices', 'tag', 'ServiceTag', 'description', 'Allow traffic from Azure services (frontend proxy)'), createObject('ipAddress', 'Any', 'action', 'Deny', 'priority', 2147483647, 'name', 'DenyAll', 'description', 'Deny all other traffic')), createArray())]",
                   "appSettings": [
                     {
                       "name": "WEBSITES_PORT",
@@ -1078,7 +1078,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "341977424065084284"
+              "templateHash": "16543418940138593953"
             }
           },
           "parameters": {
@@ -1179,7 +1179,7 @@
                     }
                   ]
                 },
-                "customRules": "[concat(if(greater(parameters('rateLimitRequestsPerMinute'), 0), createArray(createObject('name', 'RateLimitPerIP', 'priority', 10, 'ruleType', 'RateLimitRule', 'rateLimitDuration', 'OneMin', 'rateLimitThreshold', parameters('rateLimitRequestsPerMinute'), 'matchConditions', createArray(createObject('matchVariables', createArray(createObject('variableName', 'RemoteAddr')), 'operator', 'IPMatch', 'negationConditon', true(), 'matchValues', createArray('127.0.0.1'))), 'groupByUserSession', createArray(createObject('groupByVariables', createArray(createObject('variableType', 'ClientAddr')))), 'action', 'Block')), createArray()), if(not(empty(parameters('blockedCountryCodes'))), createArray(createObject('name', 'GeoFilter', 'priority', 20, 'ruleType', 'MatchRule', 'matchConditions', createArray(createObject('matchVariables', createArray(createObject('variableName', 'RemoteAddr')), 'operator', 'GeoMatch', 'matchValues', parameters('blockedCountryCodes'))), 'action', 'Block')), createArray()), createArray(createObject('name', 'BlockBadBots', 'priority', 30, 'ruleType', 'MatchRule', 'matchConditions', createArray(createObject('matchVariables', createArray(createObject('variableName', 'RequestHeaders', 'selector', 'User-Agent')), 'operator', 'Contains', 'transforms', createArray('Lowercase'), 'matchValues', createArray('sqlmap', 'nikto', 'nmap', 'masscan', 'dirbuster'))), 'action', 'Block')))]"
+                "customRules": "[concat(if(greater(parameters('rateLimitRequestsPerMinute'), 0), createArray(createObject('name', 'RateLimitPerIP', 'priority', 10, 'ruleType', 'RateLimitRule', 'rateLimitDuration', 'OneMin', 'rateLimitThreshold', parameters('rateLimitRequestsPerMinute'), 'matchConditions', createArray(createObject('matchVariables', createArray(createObject('variableName', 'RemoteAddr')), 'operator', 'IPMatch', 'negationConditon', true(), 'matchValues', createArray('127.0.0.1'))), 'groupByUserSession', createArray(createObject('groupByVariables', createArray(createObject('variableName', 'ClientAddr')))), 'action', 'Block')), createArray()), if(not(empty(parameters('blockedCountryCodes'))), createArray(createObject('name', 'GeoFilter', 'priority', 20, 'ruleType', 'MatchRule', 'matchConditions', createArray(createObject('matchVariables', createArray(createObject('variableName', 'RemoteAddr')), 'operator', 'GeoMatch', 'matchValues', parameters('blockedCountryCodes'))), 'action', 'Block')), createArray()), createArray(createObject('name', 'BlockBadBots', 'priority', 30, 'ruleType', 'MatchRule', 'matchConditions', createArray(createObject('matchVariables', createArray(createObject('variableName', 'RequestHeaders', 'selector', 'User-Agent')), 'operator', 'Contains', 'transforms', createArray('Lowercase'), 'matchValues', createArray('sqlmap', 'nikto', 'nmap', 'masscan', 'dirbuster'))), 'action', 'Block')))]"
               }
             },
             {
