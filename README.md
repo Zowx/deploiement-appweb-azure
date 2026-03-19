@@ -15,7 +15,7 @@ Application web complète déployée sur Microsoft Azure suivant une architectur
 - [Infrastructure as Code (Bicep)](#infrastructure-as-code-bicep)
 - [CI/CD](#cicd)
 - [Fonctionnalités](#fonctionnalités)
-- [Phase 2 – Performances, Sécurité & Résilience](#phase-2--performances-sécurité--résilience)
+- [Performances, Sécurité & Résilience](#performances-sécurité--résilience)
 - [Structure du projet](#structure-du-projet)
 - [Démarrage local](#démarrage-local)
 - [Déploiement Azure](#déploiement-azure)
@@ -176,7 +176,7 @@ flowchart TB
 |---------|-------|---------------|
 | **Modèle** | PaaS | Simplicité de gestion, pas de gestion de l'infrastructure sous-jacente |
 | **Service** | Azure App Service | Scaling automatique, intégration native CI/CD, SSL/TLS géré, slots de déploiement |
-| **Plan** | B1 (Basic) | Suffisant pour le développement, possibilité d'upgrade vers Standard/Premium |
+| **Plan** | S1 (Standard) | Standard pour autoscaling, Always On et VNet integration |
 | **OS** | Linux | Moins coûteux que Windows, adapté à Node.js |
 
 **Alternatives considérées :**
@@ -250,17 +250,18 @@ flowchart LR
 
 ```
 infra/
-├── main.bicep                 # Template principal (orchestration)
+├── main.bicep                 # Template principal (scope: subscription)
 ├── modules/
 │   ├── appservice.bicep       # App Service Plan + 2 Web Apps
 │   ├── database.bicep         # PostgreSQL Flexible Server
-│   ├── storage.bicep          # Storage Account + Container Blob
+│   ├── storage.bicep          # Storage Account + Container
 │   ├── keyvault.bicep         # Key Vault + Secrets + RBAC
-│   ├── appconfig.bicep        # App Configuration + Settings
-│   └── functionapp.bicep      # Function App (Consumption)
+│   ├── appconfig.bicep        # App Configuration
+│   ├── functionapp.bicep      # Function App (Consumption)
+│   ├── autoscale.bicep        # Règles autoscaling CPU│   ├── vnet.bicep             # VNet + Subnet + NSG│   ├── appgateway.bicep       # Application Gateway WAF_v2│   ├── monitoring.bicep       # Azure Monitor alertes│   └── frontdoor.bicep        # Azure Front Door (conditionnel)
 └── parameters/
-    ├── dev.bicepparam         # Paramètres développement
-    └── prod.bicepparam        # Paramètres production
+    ├── dev.bicepparam
+    └── prod.bicepparam
 ```
 
 ### Description des modules
@@ -272,7 +273,7 @@ infra/
 - Gère les dépendances entre modules (outputs → inputs)
 
 #### `appservice.bicep` - Hébergement
-- App Service Plan Linux (B1)
+- App Service Plan Linux (S1 Standard)
 - Web App Frontend avec Node.js 20 LTS
 - Web App Backend avec Node.js 20 LTS
 - System-Assigned Managed Identity pour chaque app
@@ -305,22 +306,19 @@ infra/
 - Function App Linux avec Node.js 20
 - Connexion au Storage Account pour Table Storage
 
-#### `autoscale.bicep` - Autoscaling (Phase 2)
-- Règles autoscaling basées sur le CPU
+#### `autoscale.bicep` - Autoscaling- Règles autoscaling basées sur le CPU
 - Trigger scale-out: >70% CPU pendant 5 minutes (+1 instance)
 - Trigger scale-in: <30% CPU pendant 5 minutes (-1 instance)
 - Min: 1 instance, Max: 3 instances, Cooldown: 5 minutes
 - Scope: App Service Plan S1 (Standard)
 
-#### `vnet.bicep` - Networking (Phase 2)
-- VNet: 10.0.0.0/16
+#### `vnet.bicep` - Networking- VNet: 10.0.0.0/16
 - Subnet AppGw: 10.0.1.0/24 avec NSG
 - NSG Rules: AllowGatewayManager (65200-65535), AllowHTTP (80), AllowHTTPS (443), AllowAzureLoadBalancer
 - Service endpoint Microsoft.Web sur subnet
 - Isolation réseau des applications
 
-#### `appgateway.bicep` - WAF & Reverse Proxy (Phase 2)
-- SKU: WAF_v2, capacity 1
+#### `appgateway.bicep` - WAF & Reverse Proxy- SKU: WAF_v2, capacity 1
 - Backend pool: FQDN du backend App Service
 - HTTP Settings: HTTPS 443, pickHostNameFromBackendAddress
 - Listener: HTTP port 80
@@ -328,28 +326,17 @@ infra/
 - WAF: Mode Prevention, ruleset OWASP 3.2
 - Limite upload: 100 MB
 
-#### `monitoring.bicep` - Azure Monitor (Phase 2)
-- 4 metric alerts: Response time >2s, HTTP 5xx >5, CPU >80%, Unhealthy hosts
+#### `monitoring.bicep` - Azure Monitor- 4 metric alerts: Response time >2s, HTTP 5xx >5, CPU >80%, Unhealthy hosts
 - Dashboard avec 4 panneaux (métriques principales)
 - Action Group pour notifications email
 - Intégration avec Autoscale Settings
 
-#### `frontdoor.bicep` - Multi-région Failover (Phase 2 - Bonus)
+#### `frontdoor.bicep` - Multi-région Failover (Bonus)
 - Azure Front Door Standard profile
 - Support primary + secondary origin
 - HTTPS redirect + health probes
 - Actuellement désactivé (enableFrontDoor=false) car non supporté sur subscription étudiante
 - Prêt pour activation en production
-
-### Commande de déploiement
-
-```bash
-az deployment sub create \
-  --location swedencentral \
-  --template-file infra/main.bicep \
-  --parameters infra/parameters/dev.bicepparam \
-  --parameters dbAdminPassword='<MOT_DE_PASSE>'
-```
 
 ---
 
@@ -619,9 +606,45 @@ erDiagram
 - `folder:added` - Nouveau dossier créé
 - `folder:deleted` - Dossier supprimé
 
+### Azure Function - Logging (FaaS)
+
+La Function App implémente 3 fonctions pour la gestion des logs d'activité :
+
+| Fonction | Trigger | Endpoint | Description |
+|----------|---------|----------|-------------|
+| **logActivity** | HTTP POST | `/api/logActivity` | Enregistre une activité |
+| **getLogs** | HTTP GET | `/api/getLogs` | Récupère les logs avec filtres |
+| **cleanupLogs** | Timer | CRON `0 0 2 * * *` | Supprime les logs > 30 jours |
+
+**Types d'activités loggées :**
+- `upload` : Upload d'un fichier
+- `download` : Téléchargement d'un fichier
+- `view` : Visualisation inline d'un fichier
+- `delete` : Suppression d'un fichier
+- `list` : Consultation de la liste
+- `file_moved` : Déplacement d'un fichier
+- `folder_created` : Création d'un dossier
+- `folder_deleted` : Suppression d'un dossier
+- `folder_renamed` : Renommage d'un dossier
+- `folder_moved` : Déplacement d'un dossier
+- `error` : Erreur critique
+
+**Stockage :** Azure Table Storage (table `ActivityLogs`), partitionné par date (YYYY-MM-DD)
+
+**Exemple d'appel :**
+```bash
+# Enregistrer une activité
+curl -X POST https://func-cloudazure-logging-dev.azurewebsites.net/api/logActivity \
+  -H "Content-Type: application/json" \
+  -d '{"action": "upload", "fileName": "document.pdf", "fileSize": 1024}'
+
+# Récupérer les logs du jour
+curl "https://func-cloudazure-logging-dev.azurewebsites.net/api/getLogs?date=2024-01-15"
+```
+
 ---
 
-## Phase 2 – Performances, Sécurité & Résilience
+## Performances, Sécurité & Résilience
 
 ### 2.1 Scalabilité & Autoscaling
 
@@ -822,45 +845,10 @@ HTTP/200 OK
 
 Le Backend App Service refuse tout accès direct d'Internet, forcing les clients via Application Gateway.
 
-**Configuration Backend (ipSecurityRestrictions) :**
-```bicep
-ipSecurityRestrictions: [
-  {
-    vnetSubnetResourceId: '<appgwSubnetId>'
-    action: 'Allow'
-    priority: 100
-    name: 'AllowAppGatewaySubnet'
-  }
-  {
-    action: 'Allow'
-    priority: 110
-    name: 'AllowAzureCloud'
-    serviceTag: 'AzureCloud'
-  }
-  {
-    action: 'Deny'
-    priority: 200
-    name: 'DenyAllInternet'
-    ipAddress: '0.0.0.0/0'
-  }
-]
-```
+Voir la section Difficultés (point 11) pour les détails d'implémentation.
 
 **Reverse Proxy Frontend (server.cjs) :**
-Le Frontend implémente un reverse proxy pour rediriger `/api/*` vers le Backend via HTTPS sécurisée :
-
-```javascript
-// backend/src/server.cjs
-app.use('/api', createProxyMiddleware({
-  target: process.env.BACKEND_URL || 'https://app-cloudazure-backend-dev.azurewebsites.net',
-  changeOrigin: true,
-  pathRewrite: { '^/api': '' },
-  logLevel: 'debug',
-  onError: (err, req, res) => {
-    res.status(503).json({ error: 'Backend service unavailable' });
-  }
-}));
-```
+Le Frontend implémente un reverse proxy Node.js natif (`server.cjs`) qui route les requêtes `/api/*` vers le Backend via HTTPS. Voir section Difficultés (point 11).
 
 **Flux sécurisé :**
 
@@ -1112,44 +1100,6 @@ flowchart TB
 
 ---
 
-### Azure Function - Logging (FaaS)
-
-La Function App implémente 3 fonctions pour la gestion des logs d'activité :
-
-| Fonction | Trigger | Endpoint | Description |
-|----------|---------|----------|-------------|
-| **logActivity** | HTTP POST | `/api/logActivity` | Enregistre une activité |
-| **getLogs** | HTTP GET | `/api/getLogs` | Récupère les logs avec filtres |
-| **cleanupLogs** | Timer | CRON `0 0 2 * * *` | Supprime les logs > 30 jours |
-
-**Types d'activités loggées :**
-- `upload` : Upload d'un fichier
-- `download` : Téléchargement d'un fichier
-- `view` : Visualisation inline d'un fichier
-- `delete` : Suppression d'un fichier
-- `list` : Consultation de la liste
-- `file_moved` : Déplacement d'un fichier
-- `folder_created` : Création d'un dossier
-- `folder_deleted` : Suppression d'un dossier
-- `folder_renamed` : Renommage d'un dossier
-- `folder_moved` : Déplacement d'un dossier
-- `error` : Erreur critique
-
-**Stockage :** Azure Table Storage (table `ActivityLogs`), partitionné par date (YYYY-MM-DD)
-
-**Exemple d'appel :**
-```bash
-# Enregistrer une activité
-curl -X POST https://func-cloudazure-logging-dev.azurewebsites.net/api/logActivity \
-  -H "Content-Type: application/json" \
-  -d '{"action": "upload", "fileName": "document.pdf", "fileSize": 1024}'
-
-# Récupérer les logs du jour
-curl "https://func-cloudazure-logging-dev.azurewebsites.net/api/getLogs?date=2024-01-15"
-```
-
----
-
 ## Structure du projet
 
 ```
@@ -1222,11 +1172,7 @@ cloud-azure/
 │   │   ├── keyvault.bicep       # Key Vault + Secrets + RBAC
 │   │   ├── appconfig.bicep      # App Configuration
 │   │   ├── functionapp.bicep    # Function App (Consumption)
-│   │   ├── autoscale.bicep      # Règles autoscaling CPU (Phase 2)
-│   │   ├── vnet.bicep           # VNet + Subnet + NSG (Phase 2)
-│   │   ├── appgateway.bicep     # Application Gateway WAF_v2 (Phase 2)
-│   │   ├── monitoring.bicep     # Azure Monitor alertes (Phase 2)
-│   │   └── frontdoor.bicep      # Azure Front Door (Phase 2 - conditionnel)
+│   │   ├── autoscale.bicep      # Règles autoscaling CPU│   │   ├── vnet.bicep           # VNet + Subnet + NSG│   │   ├── appgateway.bicep     # Application Gateway WAF_v2│   │   ├── monitoring.bicep     # Azure Monitor alertes│   │   └── frontdoor.bicep      # Azure Front Door (conditionnel)
 │   └── parameters/
 │       ├── dev.bicepparam
 │       └── prod.bicepparam
@@ -1304,27 +1250,7 @@ npm install
 npm run dev
 ```
 
-### Authentification Google (OAuth)
-
-Pour activer Google OAuth, configurez ces variables d'environnement pour le backend (ou utilisez `.env` en dev) :
-
-- `GOOGLE_CLIENT_ID` — Client ID fourni par Google Cloud
-- `GOOGLE_CLIENT_SECRET` — Client secret fourni par Google Cloud
-- `BASE_URL` — URL de base du backend (ex: `http://localhost:3001`)
-- `FRONTEND_URL` — URL du frontend (ex: `http://localhost:5173`)
-- `SESSION_SECRET` — secret pour `express-session`
-
-Exemple (local `.env`):
-
-```
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-BASE_URL=http://localhost:3001
-FRONTEND_URL=http://localhost:5173
-SESSION_SECRET=change_this_in_prod
-```
-
-En dev, laissez l'application en mode *Testing* dans la Google Cloud Console et ajoutez vos emails comme *Test users*. Pour la production, publiez l'application en *External* (Google peut demander une vérification selon les scopes demandés).
+Pour la configuration OAuth, voir [Section 2.7 OAuth](#27-oauth-google).
 
 
 ---
@@ -1378,7 +1304,7 @@ Les workflows GitHub Actions se déclenchent automatiquement sur push :
 
 ## Difficultés rencontrées et solutions
 
-### Difficultés Phase 1
+### Infrastructure & Déploiement
 
 ### 1. Managed Identity et RBAC
 
@@ -1496,7 +1422,7 @@ location / {
 
 ---
 
-### Difficultés Phase 2
+### Sécurité & Performances
 
 ### 9. WAF Rate Limit avec groupByUserSession
 
@@ -1630,7 +1556,7 @@ const apiUrl = new URL(
 
 ## Estimation des coûts
 
-### Phase 2 - Environnement de développement avec sécurité (mensuel)
+### Environnement de développement avec sécurité (mensuel)
 
 | Service | SKU | Coût estimé | Notes |
 |---------|-----|-------------|-------|
@@ -1647,7 +1573,7 @@ const apiUrl = new URL(
 | **Total idle (1 instance)** | | **~325-400 €/mois** | Sans autoscale burst |
 | **Total burst (3 instances)** | | **~435-510 €/mois** | Avec 3 instances actives |
 
-**Justification des changements Phase 2 :**
+**Justification des choix :**
 
 **Pourquoi S1 au lieu de B1 ?**
 
