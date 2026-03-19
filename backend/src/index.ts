@@ -19,14 +19,17 @@ import prisma from "./services/prisma.js";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { DefaultAzureCredential } from "@azure/identity";
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-const requiredEnvVars = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "SESSION_SECRET"];
+const requiredEnvVars = [
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "SESSION_SECRET",
+];
 
 for (const v of requiredEnvVars) {
   if (!process.env[v]) throw new Error(`Missing required env var: ${v}`);
@@ -42,9 +45,7 @@ app.use(express.json());
 // Session + Passport
 app.use(
   session({
-    secret: process.env.SESSION_SECRET ||
-      (process.env.NODE_ENV === "production" ? (() =>
-      { throw new Error("SESSION_SECRET must be set in production"); })() : "dev_session_secret"),
+    secret: process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
     cookie: {

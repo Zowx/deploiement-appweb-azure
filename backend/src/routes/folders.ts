@@ -23,7 +23,7 @@ router.get("/", async (_req: Request, res: Response) => {
     });
     res.json(folders);
   } catch (error) {
-    console.error("Error fetching folders:", error);
+    console.error("[FOLDERS] GET / failed:", (error as Error).message);
     res.status(500).json({ error: "Failed to fetch folders" });
   }
 });
@@ -56,7 +56,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
     res.json(folder);
   } catch (error) {
-    console.error("Error fetching folder:", error);
+    console.error("[FOLDERS] GET /:id failed:", (error as Error).message);
     res.status(500).json({ error: "Failed to fetch folder" });
   }
 });
@@ -65,7 +65,16 @@ router.get("/:id", async (req: Request, res: Response) => {
 router.get("/path/*", async (req: Request, res: Response) => {
   try {
     // Extract the path from the URL (everything after /path/)
-    const folderPath = "/" + (req.params[0] || "").replace(/\/$/, "");
+    const rawPath = (req.params[0] || "").replace(/\/$/, "");
+
+    // Reject path traversal attempts
+    const segments = rawPath.split("/").filter(Boolean);
+    if (segments.some((s: string) => s === ".." || s === ".")) {
+      res.status(400).json({ error: "Invalid folder path" });
+      return;
+    }
+
+    const folderPath = "/" + segments.join("/");
 
     const folder = await prisma.folder.findUnique({
       where: { path: folderPath },
@@ -99,7 +108,7 @@ router.get("/path/*", async (req: Request, res: Response) => {
 
     res.json(folder);
   } catch (error) {
-    console.error("Error fetching folder by path:", error);
+    console.error("[FOLDERS] GET /path/* failed:", (error as Error).message);
     res.status(500).json({ error: "Failed to fetch folder" });
   }
 });
@@ -140,7 +149,10 @@ router.get("/root/contents", async (_req: Request, res: Response) => {
       path: "/",
     });
   } catch (error) {
-    console.error("Error fetching root contents:", error);
+    console.error(
+      "[FOLDERS] GET /root/contents failed:",
+      (error as Error).message,
+    );
     res.status(500).json({ error: "Failed to fetch root contents" });
   }
 });
@@ -217,7 +229,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     res.status(201).json(folder);
   } catch (error) {
-    console.error("Error creating folder:", error);
+    console.error("[FOLDERS] POST / failed:", (error as Error).message);
     res.status(500).json({ error: "Failed to create folder" });
   }
 });
@@ -264,7 +276,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
 
     res.json({ message: "Folder deleted successfully" });
   } catch (error) {
-    console.error("Error deleting folder:", error);
+    console.error("[FOLDERS] DELETE /:id failed:", (error as Error).message);
     res.status(500).json({ error: "Failed to delete folder" });
   }
 });
@@ -340,7 +352,8 @@ router.patch("/:id", async (req: Request, res: Response) => {
       });
 
       for (const descendant of allDescendants) {
-        const newDescendantPath = descendant.path.replace(oldPath, newPath);
+        const newDescendantPath =
+          newPath + descendant.path.slice(oldPath.length);
         await prisma.folder.update({
           where: { id: descendant.id },
           data: { path: newDescendantPath },
@@ -360,7 +373,10 @@ router.patch("/:id", async (req: Request, res: Response) => {
 
     res.json(updatedFolder);
   } catch (error) {
-    console.error("Error renaming folder:", error);
+    console.error(
+      "[FOLDERS] PATCH /:id rename failed:",
+      (error as Error).message,
+    );
     res.status(500).json({ error: "Failed to rename folder" });
   }
 });
@@ -453,7 +469,7 @@ router.patch("/:id/move", async (req: Request, res: Response) => {
     });
 
     for (const descendant of allDescendants) {
-      const newDescendantPath = descendant.path.replace(oldPath, newPath);
+      const newDescendantPath = newPath + descendant.path.slice(oldPath.length);
       await prisma.folder.update({
         where: { id: descendant.id },
         data: { path: newDescendantPath },
@@ -472,7 +488,10 @@ router.patch("/:id/move", async (req: Request, res: Response) => {
 
     res.json(updatedFolder);
   } catch (error) {
-    console.error("Error moving folder:", error);
+    console.error(
+      "[FOLDERS] PATCH /:id/move failed:",
+      (error as Error).message,
+    );
     res.status(500).json({ error: "Failed to move folder" });
   }
 });

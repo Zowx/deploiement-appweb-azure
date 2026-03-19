@@ -63,14 +63,12 @@ export async function loadConfiguration(): Promise<AppConfig> {
       appName: allConfig["App:Name"] || "CloudAzure",
       environment: allConfig["App:Environment"] || "dev",
       apiVersion: allConfig["Api:Version"] || "1.0.0",
-      uploadMaxFileSizeMB: parseInt(
-        allConfig["Upload:MaxFileSizeMB"] || "10",
-        10,
+      uploadMaxFileSizeMB: parseMaxFileSizeMB(
+        allConfig["Upload:MaxFileSizeMB"],
       ),
-      uploadAllowedExtensions: (
-        allConfig["Upload:AllowedExtensions"] ||
-        ".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.zip"
-      ).split(","),
+      uploadAllowedExtensions: parseAllowedExtensions(
+        allConfig["Upload:AllowedExtensions"],
+      ),
       featureLoggingEnabled: allConfig["Feature:LoggingEnabled"] === "true",
       featureFileValidationEnabled:
         allConfig["Feature:FileValidationEnabled"] === "true",
@@ -101,6 +99,38 @@ export async function loadConfiguration(): Promise<AppConfig> {
     cachedConfig = getLocalDefaults();
     return cachedConfig;
   }
+}
+
+const DEFAULT_MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_LIMIT_MB = 500;
+const DEFAULT_ALLOWED_EXTENSIONS =
+  ".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.zip";
+
+function parseMaxFileSizeMB(raw: string | undefined): number {
+  const parsed = parseInt(raw || String(DEFAULT_MAX_FILE_SIZE_MB), 10);
+  if (isNaN(parsed) || parsed <= 0 || parsed > MAX_FILE_SIZE_LIMIT_MB) {
+    console.warn(
+      `⚠️  Invalid Upload:MaxFileSizeMB "${raw}", using default ${DEFAULT_MAX_FILE_SIZE_MB}MB`,
+    );
+    return DEFAULT_MAX_FILE_SIZE_MB;
+  }
+  return parsed;
+}
+
+function parseAllowedExtensions(raw: string | undefined): string[] {
+  const input = raw || DEFAULT_ALLOWED_EXTENSIONS;
+  const extensions = input
+    .split(",")
+    .map((ext) => ext.trim().toLowerCase())
+    .filter((ext) => /^\.[a-z0-9]+$/.test(ext));
+
+  if (extensions.length === 0) {
+    console.warn(
+      `⚠️  No valid extensions in Upload:AllowedExtensions "${raw}", using defaults`,
+    );
+    return DEFAULT_ALLOWED_EXTENSIONS.split(",");
+  }
+  return extensions;
 }
 
 function getLocalDefaults(): AppConfig {

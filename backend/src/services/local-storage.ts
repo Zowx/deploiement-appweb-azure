@@ -32,13 +32,15 @@ export async function deleteFileLocally(fileName: string): Promise<void> {
   try {
     await fs.unlink(filePath);
   } catch (error) {
-    console.error("Error deleting file:", error);
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      console.warn(`File already missing from disk: ${fileName}`);
+      return;
+    }
+    throw error;
   }
 }
 
-export async function getFileLocally(
-  fileName: string,
-): Promise<Buffer | null> {
+export async function getFileLocally(fileName: string): Promise<Buffer | null> {
   const filePath = path.join(UPLOAD_DIR, fileName);
   try {
     return await fs.readFile(filePath);
