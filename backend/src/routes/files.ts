@@ -263,21 +263,22 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 
     // Persist to database - attach owner
     const user = getUser(req);
-    // ownerId null => public file accessible to everyone
-    // Create record then update URL with the generated ID
+    const url = `/api/files/download/${storageFileName}`;
+
     const file = await prisma.file.create({
       data: {
         name: originalname,
-        url: "pending",
+        url,
         storageKey: storageFileName,
         size,
         mimeType: mimetype,
         folderId,
         ...(user ? { owner: { connect: { id: user.id } } } : {}),
       },
+      include: { folder: true },
     });
 
-    // Set the public URL to the secure ID-based endpoint
+    // Update URL to use secure ID-based endpoint
     const updatedFile = await prisma.file.update({
       where: { id: file.id },
       data: { url: `/api/files/content/${file.id}` },
@@ -289,8 +290,9 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 
     res.status(201).json(updatedFile);
   } catch (error) {
-    console.error("[FILES] POST / upload failed:", (error as Error).message);
-    res.status(500).json({ error: "Failed to upload file" });
+    const msg = (error as Error).message;
+    console.error("[FILES] POST / upload failed:", msg);
+    res.status(500).json({ error: "Failed to upload file", details: msg });
   }
 });
 
