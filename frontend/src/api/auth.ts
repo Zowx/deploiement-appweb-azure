@@ -1,5 +1,17 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).origin : "");
+function getApiBase(): string {
+  if (import.meta.env.VITE_API_BASE_URL)
+    return import.meta.env.VITE_API_BASE_URL;
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    try {
+      return new URL(apiUrl).origin;
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+const API_BASE = getApiBase();
 
 export interface UserProfile {
   id: string;
