@@ -17,7 +17,7 @@ app.use(compression({
 }));
 
 // CORS preflight handler
-app.options('/api/*', (req, res) => {
+app.options('/api/{*path}', (req, res) => {
   res.set({
     'access-control-allow-origin': req.headers.origin || '*',
     'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
