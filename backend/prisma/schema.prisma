@@ -24,17 +24,18 @@ model Folder {
 }
 
 model File {
-  id        String   @id @default(cuid())
-  name      String
-  url       String
-  size      Int
-  mimeType  String
-  folderId  String?
-  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  ownerId   String?
-  owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  storageKey String?  // filename on disk/Azure storage (nullable for legacy records)
+  size       Int
+  mimeType   String
+  folderId   String?
+  folder     Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  ownerId    String?
+  owner      User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([folderId])
 }

@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import prisma from "../services/prisma.js";
 import { loggingService } from "../services/logging.js";
 import { sseService } from "../services/sse.js";
+import { ensureAuthenticated } from "../services/auth.js";
 
 const router = Router();
 
@@ -158,7 +159,7 @@ router.get("/root/contents", async (_req: Request, res: Response) => {
 });
 
 // POST create new folder
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { name, parentId } = req.body;
 
@@ -235,114 +236,246 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // DELETE folder
-router.delete("/:id", async (req: Request, res: Response) => {
-  try {
-    const folder = await prisma.folder.findUnique({
-      where: { id: req.params.id },
-      include: {
-        _count: {
-          select: {
-            files: true,
-            children: true,
+router.delete(
+  "/:id",
+  ensureAuthenticated,
+  async (req: Request, res: Response) => {
+    try {
+      const folder = await prisma.folder.findUnique({
+        where: { id: req.params.id },
+        include: {
+          _count: {
+            select: {
+              files: true,
+              children: true,
+            },
           },
         },
-      },
-    });
-
-    if (!folder) {
-      res.status(404).json({ error: "Folder not found" });
-      return;
-    }
-
-    // Check if folder has contents
-    if (folder._count.files > 0 || folder._count.children > 0) {
-      res.status(400).json({
-        error:
-          "Cannot delete folder with contents. Please delete all files and subfolders first.",
       });
-      return;
+
+      if (!folder) {
+        res.status(404).json({ error: "Folder not found" });
+        return;
+      }
+
+      // Check if folder has contents
+      if (folder._count.files > 0 || folder._count.children > 0) {
+        res.status(400).json({
+          error:
+            "Cannot delete folder with contents. Please delete all files and subfolders first.",
+        });
+        return;
+      }
+
+      await prisma.folder.delete({
+        where: { id: req.params.id },
+      });
+
+      loggingService.logCustom(
+        "folder_deleted",
+        { folderId: folder.id, folderName: folder.name },
+        req,
+      );
+      sseService.broadcast(
+        "folder:deleted",
+        { id: folder.id },
+        folder.parentId,
+      );
+
+      res.json({ message: "Folder deleted successfully" });
+    } catch (error) {
+      console.error("[FOLDERS] DELETE /:id failed:", (error as Error).message);
+      res.status(500).json({ error: "Failed to delete folder" });
     }
-
-    await prisma.folder.delete({
-      where: { id: req.params.id },
-    });
-
-    loggingService.logCustom(
-      "folder_deleted",
-      { folderId: folder.id, folderName: folder.name },
-      req,
-    );
-    sseService.broadcast("folder:deleted", { id: folder.id }, folder.parentId);
-
-    res.json({ message: "Folder deleted successfully" });
-  } catch (error) {
-    console.error("[FOLDERS] DELETE /:id failed:", (error as Error).message);
-    res.status(500).json({ error: "Failed to delete folder" });
-  }
-});
+  },
+);
 
 // PATCH rename folder
-router.patch("/:id", async (req: Request, res: Response) => {
-  try {
-    const { name } = req.body;
+router.patch(
+  "/:id",
+  ensureAuthenticated,
+  async (req: Request, res: Response) => {
+    try {
+      const { name } = req.body;
 
-    if (!name || typeof name !== "string" || name.trim() === "") {
-      res.status(400).json({ error: "Folder name is required" });
-      return;
-    }
+      if (!name || typeof name !== "string" || name.trim() === "") {
+        res.status(400).json({ error: "Folder name is required" });
+        return;
+      }
 
-    // Validate folder name
-    if (!/^[a-zA-Z0-9_\-\s]+$/.test(name)) {
-      res.status(400).json({
-        error:
-          "Folder name can only contain letters, numbers, spaces, hyphens and underscores",
+      // Validate folder name
+      if (!/^[a-zA-Z0-9_\-\s]+$/.test(name)) {
+        res.status(400).json({
+          error:
+            "Folder name can only contain letters, numbers, spaces, hyphens and underscores",
+        });
+        return;
+      }
+
+      const folder = await prisma.folder.findUnique({
+        where: { id: req.params.id },
+        include: {
+          parent: true,
+          children: true,
+        },
       });
-      return;
+
+      if (!folder) {
+        res.status(404).json({ error: "Folder not found" });
+        return;
+      }
+
+      const newPath = folder.parent
+        ? folder.parent.path + "/" + name.trim()
+        : "/" + name.trim();
+
+      // Check if new path already exists
+      if (newPath !== folder.path) {
+        const existingFolder = await prisma.folder.findUnique({
+          where: { path: newPath },
+        });
+
+        if (existingFolder) {
+          res.status(409).json({
+            error: "A folder with this name already exists in this location",
+          });
+          return;
+        }
+      }
+
+      // Update folder and all children paths (cascade)
+      const oldPath = folder.path;
+      const updatedFolder = await prisma.folder.update({
+        where: { id: req.params.id },
+        data: {
+          name: name.trim(),
+          path: newPath,
+        },
+      });
+
+      // Update all children paths
+      if (folder.children.length > 0) {
+        const allDescendants = await prisma.folder.findMany({
+          where: {
+            path: {
+              startsWith: oldPath + "/",
+            },
+          },
+        });
+
+        for (const descendant of allDescendants) {
+          const newDescendantPath =
+            newPath + descendant.path.slice(oldPath.length);
+          await prisma.folder.update({
+            where: { id: descendant.id },
+            data: { path: newDescendantPath },
+          });
+        }
+      }
+
+      loggingService.logCustom(
+        "folder_renamed",
+        {
+          folderId: updatedFolder.id,
+          oldName: folder.name,
+          newName: updatedFolder.name,
+        },
+        req,
+      );
+
+      res.json(updatedFolder);
+    } catch (error) {
+      console.error(
+        "[FOLDERS] PATCH /:id rename failed:",
+        (error as Error).message,
+      );
+      res.status(500).json({ error: "Failed to rename folder" });
     }
+  },
+);
 
-    const folder = await prisma.folder.findUnique({
-      where: { id: req.params.id },
-      include: {
-        parent: true,
-        children: true,
-      },
-    });
+// PATCH move folder to another parent folder
+router.patch(
+  "/:id/move",
+  ensureAuthenticated,
+  async (req: Request, res: Response) => {
+    try {
+      const { parentId } = req.body;
 
-    if (!folder) {
-      res.status(404).json({ error: "Folder not found" });
-      return;
-    }
+      const folder = await prisma.folder.findUnique({
+        where: { id: req.params.id },
+        include: {
+          parent: true,
+          children: true,
+        },
+      });
 
-    const newPath = folder.parent
-      ? folder.parent.path + "/" + name.trim()
-      : "/" + name.trim();
+      if (!folder) {
+        res.status(404).json({ error: "Folder not found" });
+        return;
+      }
 
-    // Check if new path already exists
-    if (newPath !== folder.path) {
+      // Validate new parent folder exists if parentId is provided
+      let newParent = null;
+      if (parentId !== null && parentId !== undefined) {
+        newParent = await prisma.folder.findUnique({
+          where: { id: parentId },
+        });
+
+        if (!newParent) {
+          res.status(404).json({ error: "Target folder not found" });
+          return;
+        }
+
+        // Prevent moving a folder into itself or its own descendants
+        if (
+          newParent.path.startsWith(folder.path + "/") ||
+          newParent.id === folder.id
+        ) {
+          res.status(400).json({
+            error: "Cannot move a folder into itself or its descendants",
+          });
+          return;
+        }
+      }
+
+      // Calculate new path
+      const newPath = newParent
+        ? newParent.path + "/" + folder.name
+        : "/" + folder.name;
+
+      // Check if a folder with same name already exists at destination
       const existingFolder = await prisma.folder.findUnique({
         where: { path: newPath },
       });
 
-      if (existingFolder) {
+      if (existingFolder && existingFolder.id !== folder.id) {
         res.status(409).json({
-          error: "A folder with this name already exists in this location",
+          error: "A folder with this name already exists in the destination",
         });
         return;
       }
-    }
 
-    // Update folder and all children paths (cascade)
-    const oldPath = folder.path;
-    const updatedFolder = await prisma.folder.update({
-      where: { id: req.params.id },
-      data: {
-        name: name.trim(),
-        path: newPath,
-      },
-    });
+      // Update folder and all children paths
+      const oldPath = folder.path;
+      const updatedFolder = await prisma.folder.update({
+        where: { id: req.params.id },
+        data: {
+          parentId: parentId === null ? null : parentId,
+          path: newPath,
+        },
+        include: {
+          parent: true,
+          _count: {
+            select: {
+              files: true,
+              children: true,
+            },
+          },
+        },
+      });
 
-    // Update all children paths
-    if (folder.children.length > 0) {
+      // Update all descendants paths
       const allDescendants = await prisma.folder.findMany({
         where: {
           path: {
@@ -359,141 +492,26 @@ router.patch("/:id", async (req: Request, res: Response) => {
           data: { path: newDescendantPath },
         });
       }
-    }
 
-    loggingService.logCustom(
-      "folder_renamed",
-      {
-        folderId: updatedFolder.id,
-        oldName: folder.name,
-        newName: updatedFolder.name,
-      },
-      req,
-    );
-
-    res.json(updatedFolder);
-  } catch (error) {
-    console.error(
-      "[FOLDERS] PATCH /:id rename failed:",
-      (error as Error).message,
-    );
-    res.status(500).json({ error: "Failed to rename folder" });
-  }
-});
-
-// PATCH move folder to another parent folder
-router.patch("/:id/move", async (req: Request, res: Response) => {
-  try {
-    const { parentId } = req.body;
-
-    const folder = await prisma.folder.findUnique({
-      where: { id: req.params.id },
-      include: {
-        parent: true,
-        children: true,
-      },
-    });
-
-    if (!folder) {
-      res.status(404).json({ error: "Folder not found" });
-      return;
-    }
-
-    // Validate new parent folder exists if parentId is provided
-    let newParent = null;
-    if (parentId !== null && parentId !== undefined) {
-      newParent = await prisma.folder.findUnique({
-        where: { id: parentId },
-      });
-
-      if (!newParent) {
-        res.status(404).json({ error: "Target folder not found" });
-        return;
-      }
-
-      // Prevent moving a folder into itself or its own descendants
-      if (
-        newParent.path.startsWith(folder.path + "/") ||
-        newParent.id === folder.id
-      ) {
-        res.status(400).json({
-          error: "Cannot move a folder into itself or its descendants",
-        });
-        return;
-      }
-    }
-
-    // Calculate new path
-    const newPath = newParent
-      ? newParent.path + "/" + folder.name
-      : "/" + folder.name;
-
-    // Check if a folder with same name already exists at destination
-    const existingFolder = await prisma.folder.findUnique({
-      where: { path: newPath },
-    });
-
-    if (existingFolder && existingFolder.id !== folder.id) {
-      res.status(409).json({
-        error: "A folder with this name already exists in the destination",
-      });
-      return;
-    }
-
-    // Update folder and all children paths
-    const oldPath = folder.path;
-    const updatedFolder = await prisma.folder.update({
-      where: { id: req.params.id },
-      data: {
-        parentId: parentId === null ? null : parentId,
-        path: newPath,
-      },
-      include: {
-        parent: true,
-        _count: {
-          select: {
-            files: true,
-            children: true,
-          },
+      loggingService.logCustom(
+        "folder_moved",
+        {
+          folderId: updatedFolder.id,
+          folderName: updatedFolder.name,
+          parentId: parentId || "root",
         },
-      },
-    });
+        req,
+      );
 
-    // Update all descendants paths
-    const allDescendants = await prisma.folder.findMany({
-      where: {
-        path: {
-          startsWith: oldPath + "/",
-        },
-      },
-    });
-
-    for (const descendant of allDescendants) {
-      const newDescendantPath = newPath + descendant.path.slice(oldPath.length);
-      await prisma.folder.update({
-        where: { id: descendant.id },
-        data: { path: newDescendantPath },
-      });
+      res.json(updatedFolder);
+    } catch (error) {
+      console.error(
+        "[FOLDERS] PATCH /:id/move failed:",
+        (error as Error).message,
+      );
+      res.status(500).json({ error: "Failed to move folder" });
     }
-
-    loggingService.logCustom(
-      "folder_moved",
-      {
-        folderId: updatedFolder.id,
-        folderName: updatedFolder.name,
-        parentId: parentId || "root",
-      },
-      req,
-    );
-
-    res.json(updatedFolder);
-  } catch (error) {
-    console.error(
-      "[FOLDERS] PATCH /:id/move failed:",
-      (error as Error).message,
-    );
-    res.status(500).json({ error: "Failed to move folder" });
-  }
-});
+  },
+);
 
 export default router;

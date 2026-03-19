@@ -23,7 +23,14 @@ import { ensureAuthenticated } from "../services/auth.js";
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-function withOwnedFlag(file: any, user: any) {
+function getUser(req: Request): { id: string } | undefined {
+  return (req as any).user;
+}
+
+function withOwnedFlag(
+  file: { ownerId?: string | null; [key: string]: any },
+  user: { id: string } | null | undefined,
+) {
   const owned = !!(user && file.ownerId && file.ownerId === user.id);
   return { ...file, owned };
 }
@@ -63,10 +70,10 @@ function validateFile(
 router.get("/", async (req: Request, res: Response) => {
   try {
     const folderId = req.query.folderId as string | undefined;
-    const user = (req as any).user;
+    const user = getUser(req);
     // If authenticated -> return only user's private files
     // If unauthenticated -> return only public files (ownerId IS NULL)
-    const where: any = {};
+    const where: Record<string, any> = {};
     if (user) {
       where.ownerId = user.id;
     } else {
@@ -86,13 +93,84 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// GET file by filename for download/viewing (must be before "/:id")
+// Helper: serve file content given metadata
+async function serveFileContent(
+  fileMetadata: {
+    id: string;
+    name: string;
+    mimeType: string;
+    url: string;
+    storageKey?: string | null;
+    ownerId: string | null;
+  },
+  req: Request,
+  res: Response,
+) {
+  // Use storageKey if available, otherwise extract from legacy URL
+  const storageFileName =
+    fileMetadata.storageKey || fileMetadata.url.split("/").pop() || "";
+
+  let fileContent: Buffer | null;
+  if (isAzureStorageConfigured()) {
+    fileContent = await azureDownloadFile(storageFileName);
+  } else {
+    fileContent = await getFileLocally(storageFileName);
+  }
+
+  if (!fileContent) {
+    res.status(404).json({ error: "File not found in storage" });
+    return;
+  }
+
+  const forceDownload = req.query.download === "true";
+
+  if (forceDownload) {
+    loggingService.logDownload(fileMetadata.id, fileMetadata.name, req);
+  } else {
+    loggingService.logView(fileMetadata.id, fileMetadata.name, req);
+  }
+
+  res.setHeader("Content-Type", fileMetadata.mimeType);
+  res.setHeader(
+    "Content-Disposition",
+    `${forceDownload ? "attachment" : "inline"}; filename="${fileMetadata.name}"`,
+  );
+  res.send(fileContent);
+}
+
+// GET file content by ID (secure, non-guessable)
+router.get("/content/:id", async (req: Request, res: Response) => {
+  try {
+    const fileMetadata = await prisma.file.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!fileMetadata) {
+      res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    const user = getUser(req);
+    if (fileMetadata.ownerId) {
+      if (!user || fileMetadata.ownerId !== user.id) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
+
+    await serveFileContent(fileMetadata, req, res);
+  } catch (error) {
+    console.error("[FILES] GET /content/:id failed:", (error as Error).message);
+    res.status(500).json({ error: "Failed to download file" });
+  }
+});
+
+// Legacy: GET file by filename (kept for backward compatibility with existing DB URLs)
 router.get("/download/:fileName", async (req: Request, res: Response) => {
   try {
     const { fileName } = req.params;
 
-    // Find file metadata in database (exact match on URL suffix)
-    const fileMetadata: any = await prisma.file.findFirst({
+    const fileMetadata = await prisma.file.findFirst({
       where: { url: { endsWith: `/${fileName}` } },
     });
 
@@ -101,7 +179,7 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
       return;
     }
 
-    const user = (req as any).user;
+    const user = getUser(req);
     if (fileMetadata.ownerId) {
       if (!user || fileMetadata.ownerId !== user.id) {
         res.status(403).json({ error: "Forbidden" });
@@ -109,36 +187,7 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
       }
     }
 
-    // Get file content from appropriate storage
-    let fileContent: Buffer | null;
-    if (isAzureStorageConfigured()) {
-      fileContent = await azureDownloadFile(fileName);
-    } else {
-      fileContent = await getFileLocally(fileName);
-    }
-
-    if (!fileContent) {
-      res.status(404).json({ error: "File not found in storage" });
-      return;
-    }
-
-    // Check if download is requested via query parameter
-    const forceDownload = req.query.download === "true";
-
-    // Log the action (view or download)
-    if (forceDownload) {
-      loggingService.logDownload(fileMetadata.id, fileMetadata.name, req);
-    } else {
-      loggingService.logView(fileMetadata.id, fileMetadata.name, req);
-    }
-
-    // Set headers: inline for viewing, attachment for downloading
-    res.setHeader("Content-Type", fileMetadata.mimeType);
-    res.setHeader(
-      "Content-Disposition",
-      `${forceDownload ? "attachment" : "inline"}; filename="${fileMetadata.name}"`,
-    );
-    res.send(fileContent);
+    await serveFileContent(fileMetadata, req, res);
   } catch (error) {
     console.error("[FILES] GET /download failed:", (error as Error).message);
     res.status(500).json({ error: "Failed to download file" });
@@ -148,8 +197,8 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
 // GET single file
 router.get("/:id", async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
-    const file: any = await prisma.file.findUnique({
+    const user = getUser(req);
+    const file = await prisma.file.findUnique({
       where: { id: req.params.id },
     });
 
@@ -202,38 +251,43 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 
     // Normalize filename: replace multiple spaces with single space
     const normalizedName = originalname.replace(/\s+/g, " ").trim();
-    const fileName = `${Date.now()}-${normalizedName}`;
-    let url: string;
+    // Prevent path traversal
+    const safeName = normalizedName.replace(/\.\./g, "").replace(/[\/\\]/g, "");
+    const storageFileName = `${Date.now()}-${safeName}`;
 
     if (isAzureStorageConfigured()) {
-      // Azure mode: upload to Blob Storage
-      await azureUploadFile(fileName, buffer, mimetype);
-      // Store relative URL to proxy through backend (avoids public access issues)
-      url = `/api/files/download/${fileName}`;
+      await azureUploadFile(storageFileName, buffer, mimetype);
     } else {
-      // Local mode: save to local storage
-      url = await saveFileLocally(fileName, buffer);
+      await saveFileLocally(storageFileName, buffer);
     }
 
     // Persist to database - attach owner
-    const user = (req as any).user;
+    const user = getUser(req);
     // ownerId null => public file accessible to everyone
+    // Create record then update URL with the generated ID
     const file = await prisma.file.create({
       data: {
         name: originalname,
-        url,
+        url: "pending",
+        storageKey: storageFileName,
         size,
         mimeType: mimetype,
         folderId,
         ...(user ? { owner: { connect: { id: user.id } } } : {}),
       },
+    });
+
+    // Set the public URL to the secure ID-based endpoint
+    const updatedFile = await prisma.file.update({
+      where: { id: file.id },
+      data: { url: `/api/files/content/${file.id}` },
       include: { folder: true },
     });
 
-    loggingService.logUpload(file.id, originalname, size, req);
-    sseService.broadcast("file:added", file, folderId);
+    loggingService.logUpload(updatedFile.id, originalname, size, req);
+    sseService.broadcast("file:added", updatedFile, folderId);
 
-    res.status(201).json(file);
+    res.status(201).json(updatedFile);
   } catch (error) {
     console.error("[FILES] POST / upload failed:", (error as Error).message);
     res.status(500).json({ error: "Failed to upload file" });
@@ -246,7 +300,7 @@ router.delete(
   ensureAuthenticated,
   async (req: Request, res: Response) => {
     try {
-      const file: any = await prisma.file.findUnique({
+      const file = await prisma.file.findUnique({
         where: { id: req.params.id },
       });
 
@@ -255,15 +309,15 @@ router.delete(
         return;
       }
 
-      const user = (req as any).user;
-      if (!file.ownerId || file.ownerId !== user.id) {
+      const user = getUser(req);
+      if (!file.ownerId || !user || file.ownerId !== user.id) {
         // Disallow deleting public files or files owned by others
         res.status(403).json({ error: "Forbidden" });
         return;
       }
 
-      // Extract file name from URL
-      const fileName = file.url.split("/").pop() || "";
+      // Use storageKey if available, otherwise extract from legacy URL
+      const fileName = file.storageKey || file.url.split("/").pop() || "";
 
       // Delete from storage first — if this fails, DB record is preserved
       if (isAzureStorageConfigured()) {
@@ -286,25 +340,29 @@ router.delete(
 );
 
 // GET configuration info (for debugging/health check)
-router.get("/config/info", async (_req: Request, res: Response) => {
-  try {
-    const config = getAppConfig();
-    res.json({
-      appName: config.appName,
-      environment: config.environment,
-      apiVersion: config.apiVersion,
-      uploadMaxFileSizeMB: config.uploadMaxFileSizeMB,
-      uploadAllowedExtensions: config.uploadAllowedExtensions,
-      features: {
-        logging: config.featureLoggingEnabled,
-        fileValidation: config.featureFileValidationEnabled,
-      },
-      azureStorageConfigured: isAzureStorageConfigured(),
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Configuration not loaded" });
-  }
-});
+router.get(
+  "/config/info",
+  ensureAuthenticated,
+  async (_req: Request, res: Response) => {
+    try {
+      const config = getAppConfig();
+      res.json({
+        appName: config.appName,
+        environment: config.environment,
+        apiVersion: config.apiVersion,
+        uploadMaxFileSizeMB: config.uploadMaxFileSizeMB,
+        uploadAllowedExtensions: config.uploadAllowedExtensions,
+        features: {
+          logging: config.featureLoggingEnabled,
+          fileValidation: config.featureFileValidationEnabled,
+        },
+        azureStorageConfigured: isAzureStorageConfigured(),
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Configuration not loaded" });
+    }
+  },
+);
 
 // PATCH move file to another folder
 router.patch(
@@ -315,7 +373,7 @@ router.patch(
       const { folderId } = req.body;
 
       // Validate that file exists
-      const file: any = await prisma.file.findUnique({
+      const file = await prisma.file.findUnique({
         where: { id: req.params.id },
       });
 
@@ -324,8 +382,8 @@ router.patch(
         return;
       }
 
-      const user = (req as any).user;
-      if (!file.ownerId || file.ownerId !== user.id) {
+      const user = getUser(req);
+      if (!file.ownerId || !user || file.ownerId !== user.id) {
         // Only real owners can move private files; public files cannot be moved by anonymous
         res.status(403).json({ error: "Forbidden" });
         return;
