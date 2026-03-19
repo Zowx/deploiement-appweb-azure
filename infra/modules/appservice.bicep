@@ -57,6 +57,7 @@ resource frontendApp 'Microsoft.Web/sites@2024-04-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
+      alwaysOn: true
       linuxFxVersion: 'NODE|20-lts'
       appCommandLine: 'node server.cjs'
       appSettings: [
@@ -83,6 +84,7 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
+      alwaysOn: true
       linuxFxVersion: 'DOCKER|ghcr.io/zowx/cloudazure-backend:latest'
       ipSecurityRestrictions: !empty(appGatewaySubnetId) ? [
         {

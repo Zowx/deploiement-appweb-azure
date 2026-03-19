@@ -15,6 +15,7 @@ Application web complète déployée sur Microsoft Azure suivant une architectur
 - [Infrastructure as Code (Bicep)](#infrastructure-as-code-bicep)
 - [CI/CD](#cicd)
 - [Fonctionnalités](#fonctionnalités)
+- [Phase 2 – Performances, Sécurité & Résilience](#phase-2--performances-sécurité--résilience)
 - [Structure du projet](#structure-du-projet)
 - [Démarrage local](#démarrage-local)
 - [Déploiement Azure](#déploiement-azure)
@@ -52,31 +53,47 @@ Application web complète déployée sur Microsoft Azure suivant une architectur
 
 ```mermaid
 flowchart TB
-    subgraph RG1["Resource Group (rg-cloudazure-dev)"]
-        subgraph Presentation["Tier Présentation"]
-            Frontend["Frontend App Service<br/>(React + Vite)"]
+    User((Utilisateur)) -->|HTTPS| PIP["Public IP<br/>(Standard Static)"]
+
+    PIP --> AppGW["Application Gateway WAF_v2<br/>(Reverse Proxy + WAF)<br/>snet-appgw: 10.0.1.0/24"]
+
+    subgraph VNet["VNet (10.0.0.0/16)"]
+        subgraph AppGWSubnet["Subnet AppGw (10.0.1.0/24)"]
+            AppGW
+            NSG["NSG<br/>(Règles trafic)"]
         end
 
-        subgraph Logic["Tier Logique Métier"]
-            Backend["Backend App Service<br/>(Express + TypeScript)"]
+        subgraph AppSubnet["Subnet Apps (10.0.2.0/24)"]
+            Frontend["Frontend App Service<br/>(React + Vite)<br/>Reverse Proxy /api/*"]
+            Backend["Backend App Service<br/>(Express + TypeScript)<br/>Access Restricted"]
         end
-
-        subgraph Data["Tier Données"]
-            PostgreSQL[("PostgreSQL<br/>Flexible Server")]
-            Blob[("Blob Storage<br/>(Fichiers)")]
-        end
-
-        subgraph Services["Services Azure"]
-            KeyVault["Key Vault<br/>(Secrets)"]
-            AppConfig["App Configuration<br/>(Settings)"]
-        end
-
-        Frontend -->|API REST| Backend
-        Backend -->|Prisma ORM| PostgreSQL
-        Backend -->|Azure SDK| Blob
-        Backend -.->|Managed Identity| KeyVault
-        Backend -.->|Managed Identity| AppConfig
     end
+
+    AppGW -->|HTTP/HTTPS<br/>Port 80/443| Frontend
+    Frontend -->|HTTPS<br/>Reverse proxy| Backend
+
+    subgraph Data["Données"]
+        PostgreSQL[("PostgreSQL<br/>Flexible Server")]
+        Blob[("Blob Storage<br/>(Fichiers)")]
+    end
+
+    subgraph Services["Services Azure"]
+        KeyVault["Key Vault<br/>(Secrets)"]
+        AppConfig["App Configuration<br/>(Settings)"]
+        Monitor["Azure Monitor<br/>(Alertes + Dashboard)"]
+    end
+
+    subgraph Monitoring["Monitoring & Scaling"]
+        Autoscale["Autoscale Settings<br/>(CPU-based: 1-3)"]
+    end
+
+    Backend -->|Prisma ORM| PostgreSQL
+    Backend -->|Azure SDK| Blob
+    Backend -.->|Managed Identity| KeyVault
+    Backend -.->|Managed Identity| AppConfig
+    Autoscale -.->|Scale Out/In| Frontend
+    Monitor -.->|Métriques| Autoscale
+    Monitor -.->|Alertes| User
 
     subgraph RG2["Resource Group (rg-cloudazure-func-dev)"]
         Function["Azure Function<br/>(Consumption)"]
@@ -85,8 +102,6 @@ flowchart TB
     end
 
     Backend -->|HTTP| Function
-
-    User((Utilisateur)) -->|HTTPS| Frontend
 ```
 
 ### Description des tiers
@@ -191,14 +206,20 @@ flowchart TB
 | Service | Nom de la ressource | SKU/Tier | Usage |
 |---------|---------------------|----------|-------|
 | **Resource Group** | rg-cloudazure-dev | - | Conteneur logique des ressources |
-| **App Service Plan** | asp-cloudazure-dev | B1 (Basic) | Hébergement Frontend + Backend |
-| **Web App Frontend** | app-cloudazure-frontend-dev | - | Application React (SPA) |
-| **Web App Backend** | app-cloudazure-backend-dev | - | API Express REST |
+| **App Service Plan** | asp-cloudazure-dev | S1 (Standard) | Hébergement Frontend + Backend (supporte autoscale) |
+| **Web App Frontend** | app-cloudazure-frontend-dev | - | Application React (SPA) + Reverse Proxy |
+| **Web App Backend** | app-cloudazure-backend-dev | - | API Express REST (accès restreint) |
 | **PostgreSQL Flexible Server** | psql-cloudazure-dev | Burstable B1ms | Base de données relationnelle |
 | **Storage Account** | stcloudazuredev | Standard LRS | Blob Storage pour fichiers |
 | **Key Vault** | kv-cloudazure-dev | Standard | Stockage sécurisé des secrets |
 | **App Configuration** | appcs-cloudazure-dev | Free | Configuration centralisée |
 | **Function App** | func-cloudazure-logging-dev | Consumption (Y1) | Logging d'activité (FaaS) |
+| **VNet** | vnet-cloudazure-dev | - | Réseau virtuel isolé (10.0.0.0/16) |
+| **NSG** | nsg-appgw-cloudazure-dev | - | Filtrage trafic subnet App Gateway |
+| **Application Gateway** | appgw-cloudazure-dev | WAF_v2 | Reverse proxy + WAF (sécurité) |
+| **Public IP** | pip-appgw-cloudazure-dev | Standard Static | IP publique pour App Gateway |
+| **Autoscale Settings** | as-cloudazure-dev | - | Autoscaling CPU-based (1-3 instances) |
+| **Azure Monitor** | - | - | Alertes + Dashboard (métriques) |
 
 ### Sécurité - Managed Identity
 
@@ -283,6 +304,42 @@ infra/
 - Consumption Plan (Y1) pour paiement à l'usage
 - Function App Linux avec Node.js 20
 - Connexion au Storage Account pour Table Storage
+
+#### `autoscale.bicep` - Autoscaling (Phase 2)
+- Règles autoscaling basées sur le CPU
+- Trigger scale-out: >70% CPU pendant 5 minutes (+1 instance)
+- Trigger scale-in: <30% CPU pendant 5 minutes (-1 instance)
+- Min: 1 instance, Max: 3 instances, Cooldown: 5 minutes
+- Scope: App Service Plan S1 (Standard)
+
+#### `vnet.bicep` - Networking (Phase 2)
+- VNet: 10.0.0.0/16
+- Subnet AppGw: 10.0.1.0/24 avec NSG
+- NSG Rules: AllowGatewayManager (65200-65535), AllowHTTP (80), AllowHTTPS (443), AllowAzureLoadBalancer
+- Service endpoint Microsoft.Web sur subnet
+- Isolation réseau des applications
+
+#### `appgateway.bicep` - WAF & Reverse Proxy (Phase 2)
+- SKU: WAF_v2, capacity 1
+- Backend pool: FQDN du backend App Service
+- HTTP Settings: HTTPS 443, pickHostNameFromBackendAddress
+- Listener: HTTP port 80
+- Health probe: /health sur backend (vérifie connectivité BD + Storage)
+- WAF: Mode Prevention, ruleset OWASP 3.2
+- Limite upload: 100 MB
+
+#### `monitoring.bicep` - Azure Monitor (Phase 2)
+- 4 metric alerts: Response time >2s, HTTP 5xx >5, CPU >80%, Unhealthy hosts
+- Dashboard avec 4 panneaux (métriques principales)
+- Action Group pour notifications email
+- Intégration avec Autoscale Settings
+
+#### `frontdoor.bicep` - Multi-région Failover (Phase 2 - Bonus)
+- Azure Front Door Standard profile
+- Support primary + secondary origin
+- HTTPS redirect + health probes
+- Actuellement désactivé (enableFrontDoor=false) car non supporté sur subscription étudiante
+- Prêt pour activation en production
 
 ### Commande de déploiement
 
@@ -562,6 +619,497 @@ erDiagram
 - `folder:added` - Nouveau dossier créé
 - `folder:deleted` - Dossier supprimé
 
+---
+
+## Phase 2 – Performances, Sécurité & Résilience
+
+### 2.1 Scalabilité & Autoscaling
+
+L'application bénéficie d'une autoscaling intelligente pour gérer les variations de charge.
+
+**Configuration :**
+- **App Service Plan :** Upgrade de B1 (Basic) vers S1 (Standard) pour supporter l'autoscaling
+- **CPU-based autoscaling :**
+  - Scale-out: >70% CPU pendant 5 minutes → +1 instance
+  - Scale-in: <30% CPU pendant 5 minutes → -1 instance
+  - Min: 1 instance, Max: 3 instances, Cooldown: 5 minutes
+- **Always On :** Enabled sur Frontend et Backend pour éviter les cold starts
+- **Bicep module :** `autoscale.bicep`
+
+**Avantages :**
+- Gestion automatique des pics de charge
+- Réduction des coûts pendant les creux
+- Performance constante pour les utilisateurs
+- RTO/RPO amélioré avec les instances redondantes
+
+---
+
+### 2.2 Architecture réseau sécurisée
+
+Une architecture réseau dédiée isole les applications et contrôle le trafic réseau.
+
+```mermaid
+flowchart LR
+    Internet["Internet<br/>(Non approuvé)"]
+    PIP["Public IP<br/>(pip-appgw)"]
+
+    subgraph VNet["VNet (10.0.0.0/16)"]
+        AppGWSubnet["Subnet AppGw<br/>(10.0.1.0/24)<br/>NSG"]
+        AppSubnet["Subnet Apps<br/>(10.0.2.0/24)"]
+
+        subgraph AppGWSubnet
+            WAF["Application Gateway WAF_v2<br/>(Reverse Proxy)"]
+        end
+
+        subgraph AppSubnet
+            Frontend["Frontend App Service<br/>(Proxy /api/*)"]
+            Backend["Backend App Service<br/>(Access Restricted)"]
+        end
+    end
+
+    Internet --> PIP
+    PIP --> WAF
+    WAF -->|HTTP/HTTPS| Frontend
+    Frontend -->|HTTPS<br/>Reverse Proxy| Backend
+    Backend -.->|Denied from Internet| Internet
+
+    style Internet fill:#ff6b6b
+    style WAF fill:#51cf66
+    style Backend fill:#ffd43b
+    style AppGWSubnet fill:#e8f5e9
+    style AppSubnet fill:#fff3e0
+```
+
+**Configuration réseau :**
+- **VNet :** 10.0.0.0/16 - Réseau isolé pour toutes les ressources
+- **Subnet AppGw :** 10.0.1.0/24 - Accueil Application Gateway avec NSG
+- **NSG Règles (snet-appgw) :**
+  - AllowGatewayManager: Ports 65200-65535 (gestion App Gateway)
+  - AllowHTTP: Port 80 (redirection vers HTTPS)
+  - AllowHTTPS: Port 443 (trafic chiffré)
+  - AllowAzureLoadBalancer: Probes de santé
+  - DenyAll (implicite): Tout autre trafic refusé
+- **Service Endpoint :** Microsoft.Web activé sur subnet (authentification sécurisée)
+- **Bicep modules :** `vnet.bicep`, `appgateway.bicep`
+
+**Avantages :**
+- Isolation du backend du trafic Internet direct
+- Contrôle granulaire du trafic réseau
+- Conformité avec les standards de sécurité
+- Prévention des accès directs non autorisés
+
+---
+
+### 2.3 Application Gateway + WAF
+
+Application Gateway agit comme reverse proxy avec Web Application Firewall intégré.
+
+**Configuration :**
+- **SKU :** WAF_v2 (seul tier supportant WAF)
+- **Capacity :** 1 (scaling automatique via autoscale)
+- **Backend Pool :** FQDN du Backend App Service
+- **HTTP Settings :**
+  - Protocol: HTTPS
+  - Port: 443
+  - pickHostNameFromBackendAddress: Enabled (préserve le hostname)
+  - Connection Draining: 60 secondes
+- **Listener :**
+  - Protocol: HTTP (port 80)
+  - Redirection: HTTP → HTTPS
+- **Health Probe :**
+  - Path: `/health` (custom endpoint vérifiant l'état de l'app)
+  - Interval: 30 secondes
+  - Timeout: 30 secondes
+  - Unhealthy threshold: 3
+  - Vérifie: Connectivité PostgreSQL + Azure Blob Storage
+- **WAF Policy :** Prevention mode, OWASP 3.2 ruleset
+- **File Upload Limit :** 100 MB
+
+**Flux de requête :**
+```
+Client HTTPS → App Gateway WAF_v2
+              ↓ (Inspection WAF)
+              ↓ (Health check via /health)
+              ↓
+           Backend (HTTPS)
+```
+
+---
+
+### 2.4 Règles WAF personnalisées (Custom Rules)
+
+Au-delà des règles OWASP, trois règles personnalisées protègent l'application.
+
+| Rule | Type | Description | Action |
+|------|------|-------------|--------|
+| **RateLimitPerIP** | RateLimitRule | 100 req/min par IP source, groupé par ClientAddr | Block (429 Too Many Requests) |
+| **GeoFilter** | MatchRule | Block trafic depuis pays configurables (ex: CN, RU, KP) | Block (403 Forbidden) |
+| **BlockBadBots** | MatchRule | Block User-Agents: sqlmap, nikto, nmap, masscan, dirbuster | Block (403 Forbidden) |
+
+**Configuration d'exemple (Bicep) :**
+```bicep
+// Rate Limit Rule
+resource rateLimitRule 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/customRules@2023-09-01' = {
+  name: 'RateLimitPerIP'
+  properties: {
+    action: 'Block'
+    matchConditions: [
+      {
+        matchVariables: [
+          { variableName: 'RemoteAddr' }
+        ]
+        operator: 'IPMatch'
+        negationConditon: false
+        matchValues: ['0.0.0.0/0']
+      }
+    ]
+    priority: 1
+    ruleType: 'RateLimitRule'
+    rateLimitDuration: 'PT1M'
+    rateLimitThreshold: 100
+    groupByUserSession: [
+      { groupByVariables: [ { variableName: 'ClientAddr' } ] }
+    ]
+  }
+}
+```
+
+---
+
+### 2.5 Tests de sécurité WAF
+
+Tests de validation des règles WAF en environnement de test.
+
+**Test SQL Injection :**
+```bash
+# Request
+curl "http://<appgw-ip>/api/files?id=1 OR 1=1"
+
+# Response
+HTTP/403 Forbidden
+X-Azure-WAFACTION: Blocked
+```
+
+**Test XSS (Cross-Site Scripting) :**
+```bash
+# Request
+curl "http://<appgw-ip>/api/files?name=<script>alert(1)</script>"
+
+# Response
+HTTP/403 Forbidden
+X-Azure-WAFACTION: Blocked
+```
+
+**Test Health Check (allowlisting) :**
+```bash
+# Request (trusted)
+curl "http://<appgw-ip>/health"
+
+# Response
+HTTP/200 OK
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "dependencies": {
+    "database": { "status": "ok", "latency_ms": 12 },
+    "storage": { "status": "ok", "latency_ms": 45 }
+  }
+}
+```
+
+---
+
+### 2.6 Restriction d'accès Backend
+
+Le Backend App Service refuse tout accès direct d'Internet, forcing les clients via Application Gateway.
+
+**Configuration Backend (ipSecurityRestrictions) :**
+```bicep
+ipSecurityRestrictions: [
+  {
+    vnetSubnetResourceId: '<appgwSubnetId>'
+    action: 'Allow'
+    priority: 100
+    name: 'AllowAppGatewaySubnet'
+  }
+  {
+    action: 'Allow'
+    priority: 110
+    name: 'AllowAzureCloud'
+    serviceTag: 'AzureCloud'
+  }
+  {
+    action: 'Deny'
+    priority: 200
+    name: 'DenyAllInternet'
+    ipAddress: '0.0.0.0/0'
+  }
+]
+```
+
+**Reverse Proxy Frontend (server.cjs) :**
+Le Frontend implémente un reverse proxy pour rediriger `/api/*` vers le Backend via HTTPS sécurisée :
+
+```javascript
+// backend/src/server.cjs
+app.use('/api', createProxyMiddleware({
+  target: process.env.BACKEND_URL || 'https://app-cloudazure-backend-dev.azurewebsites.net',
+  changeOrigin: true,
+  pathRewrite: { '^/api': '' },
+  logLevel: 'debug',
+  onError: (err, req, res) => {
+    res.status(503).json({ error: 'Backend service unavailable' });
+  }
+}));
+```
+
+**Flux sécurisé :**
+```
+Client Browser
+    ↓
+Frontend App Service (Public URL)
+    ↓ (Reverse Proxy via https)
+Backend App Service (Private, restricted)
+    ✓ Accepts only from AppGw subnet
+    ✗ Blocks direct Internet access
+```
+
+---
+
+### 2.7 OAuth (Google)
+
+Authentification via Google OAuth2 avec gestion de sessions.
+
+**Configuration :**
+- **Library :** passport-google-oauth20
+- **Session Management :** express-session
+- **Callback URL :** `/api/auth/google/callback` (via frontend proxy)
+
+**Variables d'environnement requises :**
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `GOOGLE_CLIENT_ID` | Client ID Google Cloud | `123456.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Client secret | `GOCSPX-xxxxx` |
+| `SESSION_SECRET` | Secret pour express-session | `change_this_in_prod_!!!` |
+| `BASE_URL` | URL du backend | `https://app-...-backend-dev.azurewebsites.net` |
+| `FRONTEND_URL` | URL du frontend | `https://app-...-frontend-dev.azurewebsites.net` |
+
+**Flux OAuth :**
+```mermaid
+sequenceDiagram
+    participant U as Utilisateur
+    participant F as Frontend
+    participant B as Backend
+    participant G as Google OAuth
+
+    U->>F: Clique "Sign in with Google"
+    F->>B: GET /api/auth/google (via proxy)
+    B->>G: Redirect to Google login
+    G-->>U: Login form
+    U->>G: Enter credentials
+    G->>B: Redirect avec authorization code
+    B->>G: Exchange code for token
+    G-->>B: ID token + Access token
+    B->>B: Store session
+    B-->>F: Redirect to dashboard
+    F-->>U: Logged in ✓
+```
+
+---
+
+### 2.8 Monitoring avancé (Bonus)
+
+Azure Monitor fournit visibilité complète sur l'application avec alertes proactives.
+
+**Composants :**
+
+**1. Metric Alerts (4 alerts) :**
+| Alert | Condition | Threshold | Action |
+|-------|-----------|-----------|--------|
+| **Response Time** | Avg response time | >2000 ms | Email + Log |
+| **HTTP 5xx Errors** | Count of 5xx responses | >5 per 5min | Email + Log |
+| **CPU Usage** | Avg CPU % | >80% | Email + Autoscale trigger |
+| **Unhealthy Backend Hosts** | Count | ≥1 | Email + Critical |
+
+**2. Dashboard (Azure Portal) :**
+4 panneaux avec métriques en temps réel :
+- Response Time (line chart, 1h)
+- HTTP Status Codes (stacked bar, 5xx focus)
+- CPU & Memory (dual-axis, 1h)
+- App Gateway Health (pie chart, active/unhealthy hosts)
+
+**3. Action Group :**
+- Email notification à `operations@company.com`
+- Webhook vers système de ticketing optionnel
+- Fréquence: Immediate
+
+**4. Bicep module :** `monitoring.bicep`
+
+**Exemple de configuration :**
+```bicep
+resource responseTimeAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: 'ResponseTimeAlert'
+  location: 'global'
+  properties: {
+    description: 'Alert when response time > 2s'
+    severity: 2
+    enabled: true
+    scopes: [ appService.id ]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'ResponseTime'
+          metricName: 'ResponseTime'
+          metricNamespace: 'Microsoft.Web/sites'
+          operator: 'GreaterThan'
+          threshold: 2000
+          timeAggregation: 'Average'
+        }
+      ]
+    }
+    actions: [ actionGroupRef ]
+  }
+}
+```
+
+---
+
+### 2.9 Health Endpoint (Bonus)
+
+Un endpoint `/health` pour vérifier l'état de l'application et ses dépendances.
+
+**Endpoint :**
+```
+GET /health
+```
+
+**Réponse (200 OK) :**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "uptime_ms": 3600000,
+  "dependencies": {
+    "database": {
+      "status": "ok",
+      "latency_ms": 12
+    },
+    "storage": {
+      "status": "ok",
+      "latency_ms": 45
+    }
+  }
+}
+```
+
+**Réponse (503 Service Unavailable) :**
+```json
+{
+  "status": "degraded",
+  "timestamp": "2024-01-15T10:31:00.000Z",
+  "dependencies": {
+    "database": {
+      "status": "error",
+      "error": "Connection timeout",
+      "latency_ms": 30000
+    },
+    "storage": {
+      "status": "ok",
+      "latency_ms": 50
+    }
+  }
+}
+```
+
+**Implémentation (Backend) :**
+```typescript
+app.get('/health', async (req, res) => {
+  const start = Date.now();
+
+  try {
+    // Check PostgreSQL
+    const dbStart = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    const dbLatency = Date.now() - dbStart;
+
+    // Check Blob Storage
+    const storageStart = Date.now();
+    await container.getProperties();
+    const storageLatency = Date.now() - storageStart;
+
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime_ms: process.uptime() * 1000,
+      dependencies: {
+        database: { status: 'ok', latency_ms: dbLatency },
+        storage: { status: 'ok', latency_ms: storageLatency }
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'degraded',
+      timestamp: new Date().toISOString(),
+      dependencies: {
+        database: { status: 'error', error: error.message, latency_ms: Date.now() - start },
+        storage: { status: 'unknown' }
+      }
+    });
+  }
+});
+```
+
+**Utilisation :**
+- **App Gateway Health Probe :** Utilise ce endpoint pour valider la santé des backend instances
+- **Azure Monitor Dashboard :** Affiche historique de disponibilité
+- **Client Monitoring :** Clients peuvent vérifier l'état avant utilisation
+
+---
+
+### 2.10 Redondance multi-région (Bonus)
+
+Azure Front Door fournit failover automatique entre régions pour la haute disponibilité.
+
+**Configuration :**
+- **SKU :** Front Door Standard
+- **Profile Name :** frontdoor-cloudazure-dev
+- **Primary Origin :** Backend App Service (Region 1)
+- **Secondary Origin :** Backend App Service (Region 2 - si créée)
+- **Health Probes :** Checks `/health` endpoint toutes les 30s
+- **Routing Rules :** HTTPS redirect + path-based routing
+- **Session Affinity :** Enabled (sticky sessions)
+
+**État actuel :**
+- **Bicep module :** `frontdoor.bicep` disponible
+- **Statut :** Désactivé (`enableFrontDoor=false`)
+- **Raison :** Azure Front Door n'est pas supporté sur les subscriptions étudiantes
+- **Pour activer :** Basculer `enableFrontDoor=true` en production
+
+**Architecture (si activée) :**
+```
+                    ┌─────────────────────┐
+                    │  Azure Front Door   │
+                    │  (SSL Termination)  │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────┴──────────┐
+                    │                     │
+         ┌──────────▼──────────┐ ┌───────▼──────────┐
+         │  Region 1: Sweden   │ │ Region 2: EU     │
+         │  Primary Origin     │ │ Secondary Origin │
+         │  (Active)           │ │ (Standby)        │
+         └─────────────────────┘ └──────────────────┘
+
+Health Probe: /health (30s interval)
+Failover: Automatic if primary unhealthy
+TTL: 60 seconds (DNS cache)
+```
+
+---
+
 ### Azure Function - Logging (FaaS)
 
 La Function App implémente 3 fonctions pour la gestion des logs d'activité :
@@ -671,7 +1219,12 @@ cloud-azure/
 │   │   ├── storage.bicep        # Storage Account + Container
 │   │   ├── keyvault.bicep       # Key Vault + Secrets + RBAC
 │   │   ├── appconfig.bicep      # App Configuration
-│   │   └── functionapp.bicep    # Function App (Consumption)
+│   │   ├── functionapp.bicep    # Function App (Consumption)
+│   │   ├── autoscale.bicep      # Règles autoscaling CPU (Phase 2)
+│   │   ├── vnet.bicep           # VNet + Subnet + NSG (Phase 2)
+│   │   ├── appgateway.bicep     # Application Gateway WAF_v2 (Phase 2)
+│   │   ├── monitoring.bicep     # Azure Monitor alertes (Phase 2)
+│   │   └── frontdoor.bicep      # Azure Front Door (Phase 2 - conditionnel)
 │   └── parameters/
 │       ├── dev.bicepparam
 │       └── prod.bicepparam
@@ -823,6 +1376,8 @@ Les workflows GitHub Actions se déclenchent automatiquement sur push :
 
 ## Difficultés rencontrées et solutions
 
+### Difficultés Phase 1
+
 ### 1. Managed Identity et RBAC
 
 **Problème :** La Managed Identity du backend n'avait pas les permissions nécessaires pour accéder au Storage Account. Les requêtes échouaient avec une erreur `403 Forbidden`.
@@ -939,41 +1494,195 @@ location / {
 
 ---
 
+### Difficultés Phase 2
+
+### 9. WAF Rate Limit avec groupByUserSession
+
+**Problème :** Les règles de rate limiting du WAF ne peuvent pas être précisément groupées par session utilisateur car WAF n'a pas accès aux sessions express-session.
+
+**Cause :** Le WAF opère en couche 7 mais n'a pas accès aux variables de session backend.
+
+**Solution :** Utilisation de `groupByUserSession` basé sur ClientAddr (IP source) et optionnellement un header personnalisé pour les utilisateurs authentifiés. Rate limit configuré à 100 req/min par IP.
+
+**Code Bicep :**
+```bicep
+groupByUserSession: [
+  { groupByVariables: [ { variableName: 'ClientAddr' } ] }
+]
+```
+
+---
+
+### 10. Azure Front Door bloqué sur subscription étudiante
+
+**Problème :** Azure Front Door Standard est refusé lors du déploiement sur subscription étudiante.
+
+**Cause :** Les subscriptions étudiantes Azure Student n'accèdent pas à Front Door.
+
+**Solution :** Module `frontdoor.bicep` créé mais désactivé par défaut (`enableFrontDoor=false` dans parameters). Prêt à activer sur une subscription production.
+
+---
+
+### 11. Restriction d'accès Backend cassant les appels Frontend
+
+**Problème :** Après ajout des `ipSecurityRestrictions` sur le Backend App Service, le Frontend ne pouvait plus appeler les APIs.
+
+**Cause :** Le Frontend était considéré comme trafic externe non autorisé.
+
+**Solution :** Implémentation d'un **reverse proxy** sur le Frontend (via `server.cjs` en production) qui route `/api/*` vers le Backend en tant que connexion intra-VNet. Le Backend accepte les requêtes depuis le subnet App Gateway + AzureCloud service tag uniquement.
+
+**Frontend reverse proxy :**
+```javascript
+app.use('/api', createProxyMiddleware({
+  target: process.env.BACKEND_URL,
+  changeOrigin: true,
+  pathRewrite: { '^/api': '' },
+  secure: true
+}));
+```
+
+**Backend ipSecurityRestrictions :**
+```bicep
+[
+  {
+    vnetSubnetResourceId: '<appgwSubnetId>'
+    action: 'Allow'
+    priority: 100
+    name: 'AllowAppGatewaySubnet'
+  }
+  {
+    action: 'Allow'
+    priority: 110
+    name: 'AllowAzureCloud'
+    serviceTag: 'AzureCloud'
+  }
+  {
+    action: 'Deny'
+    priority: 200
+    name: 'DenyAllInternet'
+    ipAddress: '0.0.0.0/0'
+  }
+]
+```
+
+---
+
+### 12. OAuth redirect_uri_mismatch
+
+**Problème :** Google OAuth retournait `redirect_uri_mismatch` - l'URI de callback configuré dans Google Cloud ne correspondait pas à celui de la requête.
+
+**Cause :** Confusion entre `BASE_URL` (backend) et `FRONTEND_URL` (frontend). Le callback devait pointer vers le Frontend proxy, pas le Backend direct.
+
+**Solution :** Clarification de la configuration OAuth :
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` : Du Google Cloud Console
+- `BASE_URL` : URL du backend (ex: `https://app-...-backend-dev.azurewebsites.net`) - utilisée pour API calls
+- `FRONTEND_URL` : URL du frontend (ex: `https://app-...-frontend-dev.azurewebsites.net`) - utilisée pour redirects post-login
+- Callback URL dans Google Cloud : `https://app-...-frontend-dev.azurewebsites.net/api/auth/google/callback`
+
+**Code Backend :**
+```typescript
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: `${process.env.BASE_URL}/auth/google/callback`,
+  passReqToCallback: true
+}, ...))
+```
+
+---
+
+### 13. Cold start 2 minutes sur App Service Linux
+
+**Problème :** Premier appel à l'application prenait 2+ minutes après inactivité.
+
+**Cause :** Sans "Always On" activé, Azure met en hibernation les instances inactives.
+
+**Solution :** Activation de la propriété `alwaysOn: true` sur les App Services (à partir du tier Standard S1, non disponible en Basic).
+
+**Bicep :**
+```bicep
+siteConfig: {
+  alwaysOn: true
+  ...
+}
+```
+
+---
+
+### 14. new URL() crash avec VITE_API_URL relative
+
+**Problème :** Code frontend utilisant `new URL(relativeUrl, VITE_API_URL)` crash en build Vite.
+
+**Cause :** `VITE_API_URL` était défini sans protocole/domaine, causant une exception URL invalide.
+
+**Solution :** Toujours configurer `VITE_API_URL` avec le domaine complet en production (ex: `https://app-...-frontend-dev.azurewebsites.net/api`) ou utiliser des URL absolues avec fallback :
+
+```typescript
+const apiUrl = new URL(
+  endpoint,
+  VITE_API_URL || `${window.location.origin}/api`
+).toString();
+```
+
+---
+
 ## Estimation des coûts
 
-### Environnement de développement (mensuel)
+### Phase 2 - Environnement de développement avec sécurité (mensuel)
 
 | Service | SKU | Coût estimé | Notes |
 |---------|-----|-------------|-------|
-| **App Service Plan** | B1 (Basic) | ~13 € | 1 core, 1.75 GB RAM |
+| **App Service Plan** | S1 (Standard) | ~55 € | Supporte autoscale (1-3 instances) |
+| **App Service Plan (burst x3)** | S1 x3 | ~165 € | Coût max sous charge |
 | **PostgreSQL Flexible Server** | Burstable B1ms | ~15 € | 1 vCore, 2 GB RAM |
 | **Storage Account** | Standard LRS | ~1 € | < 10 GB estimé |
-| **Key Vault** | Standard | ~0.03 €/secret | ~5 secrets |
+| **Application Gateway** | WAF_v2 | ~250-330 € | Coût fixe horaire + traitement trafic |
+| **Key Vault** | Standard | ~0.03 € | ~5 secrets |
 | **App Configuration** | Free | 0 € | < 1000 requêtes/jour |
 | **Function App** | Consumption | ~0 € | < 1M exécutions |
+| **Public IP** | Standard Static | ~4 € | Pour Application Gateway |
 | **Bande passante** | - | ~1 € | Sortie < 5 GB |
-| **Total estimé** | | **~30 €/mois** | |
+| **Total idle (1 instance)** | | **~325-400 €/mois** | Sans autoscale burst |
+| **Total burst (3 instances)** | | **~435-510 €/mois** | Avec 3 instances actives |
 
-### Optimisations de coûts appliquées
+**Justification des changements Phase 2 :**
 
-| Optimisation | Impact |
-|--------------|--------|
-| **PostgreSQL Burstable** | -50% vs General Purpose |
-| **Storage LRS** | -40% vs GRS |
-| **App Configuration Free** | Gratuit (vs Standard ~35€) |
-| **Function Consumption** | Paiement à l'usage uniquement |
-| **Région Sweden Central** | Coûts compétitifs en Europe |
+**Pourquoi S1 au lieu de B1 ?**
+
+| Critère | B1 (Basic) | S1 (Standard) |
+|---------|-----------|---|
+| **Prix/mois** | ~13€ | ~55€ |
+| **Autoscale** | ❌ Non supporté | ✅ Oui (1-3 instances) |
+| **Slots de déploiement** | ❌ Non | ✅ Oui |
+| **VNet integration** | ❌ Non | ✅ Oui |
+| **Coût max (3 instances)** | N/A | ~165€ |
+| **Always On** | ❌ Non | ✅ Oui |
+
+**Pourquoi Application Gateway plutôt que Load Balancer ?**
+- **Layer 7 vs Layer 4:** App Gateway opère en couche HTTP/HTTPS (7) vs Load Balancer en TCP/UDP (4)
+- **WAF natif:** App Gateway intègre nativement le Web Application Firewall
+- **Routage avancé:** Basé sur URL, affinité de session, SSL termination
+- **Load Balancer limitation:** Ne fournit pas de protection WAF, routage basique seulement
+
+**Pourquoi WAF_v2 ?**
+- **Seul tier WAF:** WAF_v2 est le seul SKU supportant le Web Application Firewall
+- **Rulesets:** Protection OWASP 3.2 contre SQL injection, XSS, CSRF, etc.
+- **Custom rules:** Rate limiting, geo-filtering, blocklists personnalisées
+- **Mode prevention:** Bloque les attaques (vs Detection qui log seulement)
 
 ### Projection environnement production
 
-| Service | SKU Production | Coût estimé |
-|---------|----------------|-------------|
-| App Service Plan | S1 (Standard) | ~70 € |
-| PostgreSQL | General Purpose D2s | ~120 € |
-| Storage Account | Standard GRS | ~5 € |
-| Function App | Premium EP1 | ~150 € |
-| Application Gateway | Standard | ~30 € |
-| **Total Production** | | **~375 €/mois** |
+| Service | SKU Production | Coût estimé | Notes |
+|---------|----------------|-------------|-------|
+| **App Service Plan** | S2 (Standard) | ~110 € | Supporte autoscale 1-5 instances |
+| **PostgreSQL** | General Purpose D2s | ~120 € | Production-grade HA |
+| **Storage Account** | Standard GRS | ~5 € | Redondance géographique |
+| **Application Gateway** | WAF_v2 | ~330-500 € | 2+ instances, trafic élevé |
+| **Function App** | Premium EP1 | ~150 € | Always-on, performance |
+| **Front Door** | Standard | ~130 € | Multi-région failover |
+| **Azure Monitor** | Standard | ~50 € | Alertes + Dashboard |
+| **Bande passante** | - | ~50 € | Sortie 100+ GB |
+| **Total Production** | | **~945-1250 €/mois** | HA multi-région |
 
 ---
 
