@@ -261,16 +261,18 @@ export function FileList({
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.5rem',
-                                    minWidth: '100px',
+                                    minWidth: '120px',
                                 }}
                             >
                                 {sortKey === 'createdAt' && '📅'}
                                 {sortKey === 'name' && '📄'}
                                 {sortKey === 'size' && '💾'}
+                                {sortKey === 'visibility' && '🔐'}
                                 <span>
                                     {sortKey === 'createdAt' && 'Date'}
                                     {sortKey === 'name' && 'Nom'}
                                     {sortKey === 'size' && 'Taille'}
+                                    {sortKey === 'visibility' && 'Visibilité'}
                                 </span>
                                 <span style={{ marginLeft: 'auto', fontSize: '0.8em' }}>▼</span>
                             </button>
@@ -347,6 +349,26 @@ export function FileList({
                                     >
                                         💾
                                         <span>Taille</span>
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setSortKey('visibility');
+                                            setIsSortDropdownOpen(false);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '0.5rem',
+                                            border: 'none',
+                                            backgroundColor: 'transparent',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            textAlign: 'left',
+                                        }}
+                                    >
+                                        🔐
+                                        <span>Visibilité</span>
                                     </button>
                                 </div>
                             )}
@@ -446,16 +468,18 @@ export function FileList({
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.5rem',
-                                    minWidth: '100px',
+                                    minWidth: '120px',
                                 }}
                             >
                                 {sortKey === 'createdAt' && '📅'}
                                 {sortKey === 'name' && '📄'}
                                 {sortKey === 'size' && '💾'}
+                                {sortKey === 'visibility' && '🔐'}
                                 <span>
                                     {sortKey === 'createdAt' && 'Date'}
                                     {sortKey === 'name' && 'Nom'}
                                     {sortKey === 'size' && 'Taille'}
+                                    {sortKey === 'visibility' && 'Visibilité'}
                                 </span>
                                 <span style={{ marginLeft: 'auto', fontSize: '0.8em' }}>▼</span>
                             </button>
@@ -532,6 +556,26 @@ export function FileList({
                                     >
                                         💾
                                         <span>Taille</span>
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setSortKey('visibility');
+                                            setIsSortDropdownOpen(false);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '0.5rem',
+                                            border: 'none',
+                                            backgroundColor: 'transparent',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            textAlign: 'left',
+                                        }}
+                                    >
+                                        🔐
+                                        <span>Visibilité</span>
                                     </button>
                                 </div>
                             )}
@@ -713,16 +757,18 @@ export function FileList({
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '0.5rem',
-                                        minWidth: '100px',
+                                        minWidth: '120px',
                                     }}
                                 >
                                     {sortKey === 'createdAt' && '📅'}
                                     {sortKey === 'name' && '📄'}
                                     {sortKey === 'size' && '💾'}
+                                    {sortKey === 'visibility' && '🔐'}
                                     <span>
                                         {sortKey === 'createdAt' && 'Date'}
                                         {sortKey === 'name' && 'Nom'}
                                         {sortKey === 'size' && 'Taille'}
+                                        {sortKey === 'visibility' && 'Visibilité'}
                                     </span>
                                     <span style={{ marginLeft: 'auto', fontSize: '0.8em' }}>▼</span>
                                 </button>
@@ -799,6 +845,26 @@ export function FileList({
                                         >
                                             💾
                                             <span>Taille</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setSortKey('visibility');
+                                                setIsSortDropdownOpen(false);
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.5rem',
+                                                border: 'none',
+                                                backgroundColor: 'transparent',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                textAlign: 'left',
+                                            }}
+                                        >
+                                            🔐
+                                            <span>Visibilité</span>
                                         </button>
                                     </div>
                                 )}
