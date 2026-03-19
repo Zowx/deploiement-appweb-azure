@@ -18,10 +18,15 @@ import {
 } from "../services/bootstrap.js";
 import { loggingService } from "../services/logging.js";
 import { sseService } from "../services/sse.js";
+import { ensureAuthenticated } from "../services/auth.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+function withOwnedFlag(file: any, user: any) {
+  const owned = !!(user && file.ownerId && file.ownerId === user.id);
+  return { ...file, owned };
+}
 function validateFile(
   filename: string,
   size: number,
@@ -53,17 +58,22 @@ function validateFile(
   return { valid: true };
 }
 
-// GET all files (optionally filtered by folder)
+// GET all files (optionally filtered by folder) - returns only files owned by the user
 router.get("/", async (req: Request, res: Response) => {
   try {
     const folderId = req.query.folderId as string | undefined;
+    const user = (req as any).user;
+    // If authenticated -> return only user's private files
+    // If unauthenticated -> return only public files (ownerId IS NULL)
+    const where: any = {};
+    if (user) {
+      where.ownerId = user.id;
+    } else {
+      where.ownerId = null;
+    }
+    if (folderId) where.folderId = folderId;
 
-    const files = await prisma.file.findMany({
-      where: folderId ? { folderId } : {},
-      include: {
-        folder: true,
-      },
-    });
+    const files = await prisma.file.findMany({ where, include: { folder: true } });
     loggingService.logList(files.length, req);
     res.json(files);
   } catch (error) {
@@ -72,39 +82,28 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// GET single file
-router.get("/:id", async (req: Request, res: Response) => {
-  try {
-    const file = await prisma.file.findUnique({
-      where: { id: req.params.id },
-    });
 
-    if (!file) {
-      res.status(404).json({ error: "File not found" });
-      return;
-    }
-
-    loggingService.logDownload(file.id, file.name, req);
-    res.json(file);
-  } catch (error) {
-    console.error("Error fetching file:", error);
-    res.status(500).json({ error: "Failed to fetch file" });
-  }
-});
-
-// GET file by filename for download/viewing
+// GET file by filename for download/viewing (must be before "/:id")
 router.get("/download/:fileName", async (req: Request, res: Response) => {
   try {
     const { fileName } = req.params;
 
     // Find file metadata in database
-    const fileMetadata = await prisma.file.findFirst({
+    const fileMetadata: any = await prisma.file.findFirst({
       where: { url: { contains: fileName } },
     });
 
     if (!fileMetadata) {
       res.status(404).json({ error: "File metadata not found" });
       return;
+    }
+
+    const user = (req as any).user;
+    if (fileMetadata.ownerId) {
+      if (!user || fileMetadata.ownerId !== user.id) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
     }
 
     // Get file content from appropriate storage
@@ -140,6 +139,30 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error downloading file:", error);
     res.status(500).json({ error: "Failed to download file" });
+  }
+});
+
+// GET single file
+router.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const file: any = await prisma.file.findUnique({ where: { id: req.params.id } });
+
+    if (!file) {
+      res.status(404).json({ error: "File not found" });
+      return;
+    }
+    if (file.ownerId) {
+      if (!user || file.ownerId !== user.id) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
+    loggingService.logDownload(file.id, file.name, req);
+    res.json(withOwnedFlag(file, user));
+  } catch (error) {
+    console.error("Error fetching file:", error);
+    res.status(500).json({ error: "Failed to fetch file" });
   }
 });
 
@@ -187,7 +210,9 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       url = await saveFileLocally(fileName, buffer);
     }
 
-    // Persist to database
+    // Persist to database - attach owner
+    const user = (req as any).user;
+    // ownerId null => public file accessible to everyone
     const file = await prisma.file.create({
       data: {
         name: originalname,
@@ -195,10 +220,9 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
         size,
         mimeType: mimetype,
         folderId,
+        ...(user ? { owner: { connect: { id: user.id } } } : {}),
       },
-      include: {
-        folder: true,
-      },
+      include: { folder: true },
     });
 
     loggingService.logUpload(file.id, originalname, size, req);
@@ -212,14 +236,19 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 });
 
 // DELETE file
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const file = await prisma.file.findUnique({
-      where: { id: req.params.id },
-    });
+    const file: any = await prisma.file.findUnique({ where: { id: req.params.id } });
 
     if (!file) {
       res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    const user = (req as any).user;
+    if (!file.ownerId || file.ownerId !== user.id) {
+      // Disallow deleting public files or files owned by others
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
 
@@ -235,9 +264,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
     }
 
     // Delete from database
-    await prisma.file.delete({
-      where: { id: req.params.id },
-    });
+    await prisma.file.delete({ where: { id: req.params.id } });
 
     loggingService.logDelete(file.id, file.name, req);
     sseService.broadcast("file:deleted", { id: file.id }, file.folderId);
@@ -271,17 +298,22 @@ router.get("/config/info", async (_req: Request, res: Response) => {
 });
 
 // PATCH move file to another folder
-router.patch("/:id/move", async (req: Request, res: Response) => {
+router.patch("/:id/move", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { folderId } = req.body;
 
     // Validate that file exists
-    const file = await prisma.file.findUnique({
-      where: { id: req.params.id },
-    });
+    const file: any = await prisma.file.findUnique({ where: { id: req.params.id } });
 
     if (!file) {
       res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    const user = (req as any).user;
+    if (!file.ownerId || file.ownerId !== user.id) {
+      // Only real owners can move private files; public files cannot be moved by anonymous
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
 
