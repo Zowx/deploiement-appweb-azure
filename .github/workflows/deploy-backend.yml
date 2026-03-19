@@ -65,6 +65,19 @@ jobs:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.sha }}
 
+      - name: Configure App Settings
+        run: |
+          az webapp config appsettings set \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group rg-cloudazure-dev \
+            --settings \
+              GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+              GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+              SESSION_SECRET="${{ secrets.SESSION_SECRET }}" \
+              BASE_URL="${{ secrets.BASE_URL }}" \
+              FRONTEND_URL="${{ secrets.FRONTEND_URL }}" \
+            --output none
+
       - name: Setup Node.js for migrations
         uses: actions/setup-node@v4
         with:
