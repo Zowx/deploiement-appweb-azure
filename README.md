@@ -726,12 +726,11 @@ Application Gateway agit comme reverse proxy avec Web Application Firewall inté
 - **File Upload Limit :** 100 MB
 
 **Flux de requête :**
-```
-Client HTTPS → App Gateway WAF_v2
-              ↓ (Inspection WAF)
-              ↓ (Health check via /health)
-              ↓
-           Backend (HTTPS)
+
+```mermaid
+flowchart LR
+    Client["Client HTTPS"] --> WAF["App Gateway WAF_v2<br/>(Inspection WAF)"]
+    WAF -->|"Health check /health"| Backend["Backend<br/>(HTTPS 443)"]
 ```
 
 ---
@@ -864,14 +863,15 @@ app.use('/api', createProxyMiddleware({
 ```
 
 **Flux sécurisé :**
-```
-Client Browser
-    ↓
-Frontend App Service (Public URL)
-    ↓ (Reverse Proxy via https)
-Backend App Service (Private, restricted)
-    ✓ Accepts only from AppGw subnet
-    ✗ Blocks direct Internet access
+
+```mermaid
+flowchart TB
+    Client["Client Browser"] --> Frontend["Frontend App Service<br/>(URL publique)"]
+    Frontend -->|"Reverse Proxy HTTPS"| Backend["Backend App Service<br/>(Accès restreint)"]
+    Backend -.->|"Accepte uniquement"| AppGw["Subnet App Gateway"]
+    Internet["Internet direct"] -.->|"Bloqué"| Backend
+    style Internet fill:#ffcdd2
+    style Backend fill:#c8e6c9
 ```
 
 ---
@@ -1089,24 +1089,26 @@ Azure Front Door fournit failover automatique entre régions pour la haute dispo
 - **Pour activer :** Basculer `enableFrontDoor=true` en production
 
 **Architecture (si activée) :**
-```
-                    ┌─────────────────────┐
-                    │  Azure Front Door   │
-                    │  (SSL Termination)  │
-                    └──────────┬──────────┘
-                               │
-                    ┌──────────┴──────────┐
-                    │                     │
-         ┌──────────▼──────────┐ ┌───────▼──────────┐
-         │  Region 1: Sweden   │ │ Region 2: EU     │
-         │  Primary Origin     │ │ Secondary Origin │
-         │  (Active)           │ │ (Standby)        │
-         └─────────────────────┘ └──────────────────┘
 
-Health Probe: /health (30s interval)
-Failover: Automatic if primary unhealthy
-TTL: 60 seconds (DNS cache)
+```mermaid
+flowchart TB
+    FD["Azure Front Door<br/>(SSL Termination)"]
+
+    subgraph Region1["Region 1 : Sweden Central"]
+        Origin1["Primary Origin<br/>(Active)"]
+    end
+
+    subgraph Region2["Region 2 : West Europe"]
+        Origin2["Secondary Origin<br/>(Standby)"]
+    end
+
+    FD -->|"Active"| Origin1
+    FD -.->|"Failover"| Origin2
 ```
+
+- **Health Probe :** `/health` (intervalle 30s)
+- **Failover :** Automatique si la région primaire est unhealthy
+- **TTL :** 60 secondes (cache DNS)
 
 ---
 
