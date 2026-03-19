@@ -30,7 +30,11 @@ export function AuthButton() {
             <button
                 className='btn btn-secondary'
                 onClick={async () => {
-                    await logout();
+                    try {
+                        await logout();
+                    } catch (e) {
+                        console.error('Logout failed:', e);
+                    }
                     setUser(null);
                     window.location.reload();
                 }}

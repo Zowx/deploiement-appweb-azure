@@ -25,7 +25,7 @@ router.get("/auth/me", (req: Request, res: Response) => {
 
 router.post("/auth/logout", (req: Request, res: Response, next: NextFunction) => {
   // req.logout may require a callback in newer passport versions
-  (req as any).logout((err: any) => {
+  req.logout((err) => {
     if (err) return next(err);
     req.session?.destroy(() => res.sendStatus(200));
   });

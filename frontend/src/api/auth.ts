@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL?.replace("/api/files", "") || "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).origin : "");
 
 export interface UserProfile {
   id: string;
