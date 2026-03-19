@@ -13,4 +13,11 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
+async function gracefulShutdown() {
+  await prisma.$disconnect();
+}
+
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);
+
 export default prisma;

@@ -62,13 +62,8 @@ class LoggingService {
     }
   }
 
-  async logUpload(
-    fileId: string,
-    fileName: string,
-    fileSize: number,
-    req?: any,
-  ) {
-    await this.logActivity(
+  logUpload(fileId: string, fileName: string, fileSize: number, req?: any) {
+    this.logActivity(
       {
         action: "upload",
         fileId,
@@ -77,11 +72,11 @@ class LoggingService {
         details: `File uploaded: ${fileName} (${fileSize} bytes)`,
       },
       req,
-    );
+    ).catch(() => {});
   }
 
-  async logDownload(fileId: string, fileName: string, req?: any) {
-    await this.logActivity(
+  logDownload(fileId: string, fileName: string, req?: any) {
+    this.logActivity(
       {
         action: "download",
         fileId,
@@ -89,11 +84,11 @@ class LoggingService {
         details: `File downloaded: ${fileName}`,
       },
       req,
-    );
+    ).catch(() => {});
   }
 
-  async logView(fileId: string, fileName: string, req?: any) {
-    await this.logActivity(
+  logView(fileId: string, fileName: string, req?: any) {
+    this.logActivity(
       {
         action: "view",
         fileId,
@@ -101,11 +96,11 @@ class LoggingService {
         details: `File viewed: ${fileName}`,
       },
       req,
-    );
+    ).catch(() => {});
   }
 
-  async logDelete(fileId: string, fileName: string, req?: any) {
-    await this.logActivity(
+  logDelete(fileId: string, fileName: string, req?: any) {
+    this.logActivity(
       {
         action: "delete",
         fileId,
@@ -113,39 +108,39 @@ class LoggingService {
         details: `File deleted: ${fileName}`,
       },
       req,
-    );
+    ).catch(() => {});
   }
 
-  async logList(count: number, req?: any) {
-    await this.logActivity(
+  logList(count: number, req?: any) {
+    this.logActivity(
       {
         action: "list",
         details: `Listed ${count} files`,
       },
       req,
-    );
+    ).catch(() => {});
   }
 
-  async logError(error: string, details?: string, req?: any) {
-    await this.logActivity(
+  logError(error: string, details?: string, req?: any) {
+    this.logActivity(
       {
         action: "error",
         errorMessage: error,
         details,
       },
       req,
-    );
+    ).catch(() => {});
   }
 
-  async logCustom(action: string, metadata: Record<string, any>, req?: any) {
-    await this.logActivity(
+  logCustom(action: string, metadata: Record<string, any>, req?: any) {
+    this.logActivity(
       {
         action,
         metadata,
         details: `Custom action: ${action}`,
       },
       req,
-    );
+    ).catch(() => {});
   }
 }
 

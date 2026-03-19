@@ -25,6 +25,41 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3001;
 
+// In-memory rate limiter
+const rateLimitStore: Record<string, { count: number; resetTime: number }> = {};
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX_REQUESTS = 100;
+
+function rateLimiter(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  const ip = req.ip || "unknown";
+  const now = Date.now();
+
+  if (!rateLimitStore[ip]) {
+    rateLimitStore[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+  }
+
+  const record = rateLimitStore[ip];
+
+  if (now > record.resetTime) {
+    record.count = 0;
+    record.resetTime = now + RATE_LIMIT_WINDOW;
+  }
+
+  record.count++;
+
+  if (record.count > RATE_LIMIT_MAX_REQUESTS) {
+    return res
+      .status(429)
+      .json({ error: "Too many requests, please try again later" });
+  }
+
+  next();
+}
+
 const requiredEnvVars = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
@@ -35,13 +70,21 @@ for (const v of requiredEnvVars) {
   if (!process.env[v]) throw new Error(`Missing required env var: ${v}`);
 }
 
+if (process.env.NODE_ENV === "production") {
+  const productionEnvVars = ["FRONTEND_URL", "BASE_URL"];
+  for (const v of productionEnvVars) {
+    if (!process.env[v])
+      throw new Error(`Missing required env var in production: ${v}`);
+  }
+}
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || false,
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 // Session + Passport
 app.use(
   session({
@@ -51,13 +94,16 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "strict",
       maxAge: 24 * 60 * 60 * 1000, // 24h
     },
   }),
 );
 app.use(passport.initialize());
 app.use(passport.session());
+
+// Apply rate limiting to API routes
+app.use("/api", rateLimiter);
 
 // Auth routes
 app.use("/api", authRouter);
@@ -139,9 +185,25 @@ app.use("/api", sseRouter);
 app.use(express.static(path.join(__dirname, "../public")));
 
 // SPA fallback
-app.get("*", (_req, res) => {
+app.get("*", (req: express.Request, res: express.Response) => {
+  if (req.path.startsWith("/api") || req.path === "/health") {
+    return res.status(404).json({ error: "Not found" });
+  }
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
+
+// Global error handler
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    console.error("Error:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  },
+);
 
 // Bootstrap application
 async function startServer() {
@@ -159,3 +221,16 @@ async function startServer() {
 }
 
 startServer();
+
+// Graceful shutdown for Prisma
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM received, shutting down gracefully");
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on("SIGINT", async () => {
+  console.log("SIGINT received, shutting down gracefully");
+  await prisma.$disconnect();
+  process.exit(0);
+});
