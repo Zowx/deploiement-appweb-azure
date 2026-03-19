@@ -1,5 +1,8 @@
 import express from "express";
 import cors from "cors";
+import session from "express-session";
+import passport from "./services/passport.js";
+import authRouter from "./routes/auth.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
@@ -17,8 +20,27 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  }),
+);
 app.use(express.json());
+// Session + Passport
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "dev_session_secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === "production" },
+  }),
+);
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Auth routes
+app.use("/api", authRouter);
 
 // Health check endpoint with config info
 app.get("/health", (_req, res) => {
