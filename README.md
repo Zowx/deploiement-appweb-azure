@@ -1176,7 +1176,11 @@ cloud-azure/
 │   │   ├── keyvault.bicep       # Key Vault + Secrets + RBAC
 │   │   ├── appconfig.bicep      # App Configuration
 │   │   ├── functionapp.bicep    # Function App (Consumption)
-│   │   ├── autoscale.bicep      # Règles autoscaling CPU│   │   ├── vnet.bicep           # VNet + Subnet + NSG│   │   ├── appgateway.bicep     # Application Gateway WAF_v2│   │   ├── monitoring.bicep     # Azure Monitor alertes│   │   └── frontdoor.bicep      # Azure Front Door (conditionnel)
+│   │   ├── autoscale.bicep      # Règles autoscaling CPU
+│   │   ├── vnet.bicep           # VNet + Subnet + NSG
+│   │   ├── appgateway.bicep     # Application Gateway WAF_v2
+│   │   ├── monitoring.bicep     # Azure Monitor alertes
+│   │   └── frontdoor.bicep      # Azure Front Door (conditionnel)
 │   └── parameters/
 │       ├── dev.bicepparam
 │       └── prod.bicepparam
