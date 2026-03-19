@@ -16,6 +16,9 @@ param dbAdminLogin string = 'pgadmin'
 @description('PostgreSQL administrator password')
 param dbAdminPassword string
 
+@description('Admin email for autoscale notifications')
+param notificationEmail string = 'admin@${projectName}.com'
+
 var resourceGroupName = 'rg-${projectName}-${environment}'
 var functionResourceGroupName = 'rg-${projectName}-func-${environment}'
 var keyVaultName = 'kv-${projectName}-${environment}'
@@ -54,6 +57,16 @@ module storage 'modules/storage.bicep' = {
   }
 }
 
+module vnet 'modules/vnet.bicep' = {
+  name: 'vnet-deployment'
+  scope: rg
+  params: {
+    location: location
+    environment: environment
+    projectName: projectName
+  }
+}
+
 module appService 'modules/appservice.bicep' = {
   name: 'appservice-deployment'
   scope: rg
@@ -66,6 +79,31 @@ module appService 'modules/appservice.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     databaseServerFqdn: database.outputs.serverFqdn
     functionAppUrl: functionAppUrl
+    appGatewaySubnetId: vnet.outputs.appGatewaySubnetId
+  }
+}
+
+module autoscale 'modules/autoscale.bicep' = {
+  name: 'autoscale-deployment'
+  scope: rg
+  params: {
+    location: location
+    environment: environment
+    projectName: projectName
+    appServicePlanId: appService.outputs.appServicePlanId
+    notificationEmail: notificationEmail
+  }
+}
+
+module appGateway 'modules/appgateway.bicep' = {
+  name: 'appgateway-deployment'
+  scope: rg
+  params: {
+    location: location
+    environment: environment
+    projectName: projectName
+    subnetId: vnet.outputs.appGatewaySubnetId
+    backendFqdn: appService.outputs.backendFqdn
   }
 }
 
@@ -123,3 +161,7 @@ output keyVaultName string = keyVault.outputs.keyVaultName
 output appConfigEndpoint string = appConfig.outputs.configStoreEndpoint
 output databaseServer string = database.outputs.serverFqdn
 output functionAppUrl string = functionApp.outputs.functionAppUrl
+output vnetName string = vnet.outputs.vnetName
+output appGatewayName string = appGateway.outputs.appGatewayName
+output appGatewayPublicIp string = appGateway.outputs.publicIpAddress
+output appGatewayFqdn string = appGateway.outputs.publicIpFqdn

@@ -7,8 +7,14 @@ param environment string
 @description('Project name')
 param projectName string
 
-@description('App Service Plan SKU')
-param skuName string = 'B1'
+@description('App Service Plan SKU name')
+param skuName string = 'S1'
+
+@description('App Service Plan SKU tier')
+param skuTier string = 'Standard'
+
+@description('App Gateway subnet ID for access restrictions (empty = no restriction)')
+param appGatewaySubnetId string = ''
 
 @description('Key Vault name for secrets')
 param keyVaultName string = ''
@@ -35,7 +41,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   kind: 'linux'
   sku: {
     name: skuName
-    tier: 'Basic'
+    tier: skuTier
   }
   properties: {
     reserved: true
@@ -78,6 +84,22 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       linuxFxVersion: 'DOCKER|ghcr.io/zowx/cloudazure-backend:latest'
+      ipSecurityRestrictions: !empty(appGatewaySubnetId) ? [
+        {
+          vnetSubnetResourceId: appGatewaySubnetId
+          action: 'Allow'
+          priority: 100
+          name: 'AllowAppGateway'
+          description: 'Allow traffic from Application Gateway subnet'
+        }
+        {
+          ipAddress: 'Any'
+          action: 'Deny'
+          priority: 2147483647
+          name: 'DenyAll'
+          description: 'Deny all other traffic'
+        }
+      ] : []
       appSettings: [
         {
           name: 'WEBSITES_PORT'
@@ -130,6 +152,8 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
 }
 
 output appServicePlanId string = appServicePlan.id
+output appServicePlanName string = appServicePlan.name
+output backendFqdn string = backendApp.properties.defaultHostName
 output frontendAppName string = frontendApp.name
 output frontendAppUrl string = 'https://${frontendApp.properties.defaultHostName}'
 output frontendPrincipalId string = frontendApp.identity.principalId
