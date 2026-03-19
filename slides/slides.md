@@ -36,8 +36,9 @@ Déploiement d'une application de gestion de fichiers sur Microsoft Azure
 5. Infrastructure as Code (Bicep)
 6. CI/CD et sécurité (OIDC, Key Vault, App Config)
 7. Upload Blob Storage
-8. Difficultés et solutions
-9. Coûts détaillés + démo live
+8. Sécurité avancée, monitoring et health checks
+9. Difficultés et solutions
+10. Coûts détaillés + démo live
 
 ---
 
@@ -105,6 +106,7 @@ Déploiement d'une application de gestion de fichiers sur Microsoft Azure
 - Azure App Service
 - PostgreSQL + Blob Storage
 - Key Vault + App Config
+- Microsoft Entra ID (OAuth 2.0)
 - Bicep + GitHub Actions + OIDC
 
 </div>
@@ -121,7 +123,9 @@ Objectif: une stack simple à maintenir, cohérente en TypeScript de bout en bou
 
 ```mermaid {scale: 0.7}
 flowchart LR
-    U((Utilisateur)) -->|HTTPS| FE[Frontend App Service]
+  U((Utilisateur)) -->|HTTPS| FD[Front Door / Traffic Manager]
+  FD -->|WAF + TLS| AGW[Application Gateway]
+  AGW -->|HTTPS| FE[Frontend App Service]
     FE -->|API REST| BE[Backend App Service]
     BE -->|Prisma| DB[(PostgreSQL)]
     BE -->|SDK| BL[(Blob Storage)]
@@ -131,7 +135,7 @@ flowchart LR
 ```
 
 <div class="pt-3 text-sm opacity-80">
-Frontend = présentation, Backend = logique métier, PostgreSQL + Blob = données.
+Trafic entrant sécurisé (WAF) et scalabilité horizontale sur App Service.
 </div>
 
 ---
@@ -155,11 +159,15 @@ Choix du groupe : App Service pour livrer vite, avec une complexité opérationn
 
 | Besoin | Service Azure | Rôle |
 |---|---|---|
+| Authentification | Microsoft Entra ID (OAuth 2.0) | Connexion sécurisée |
 | Frontend + Backend | App Service | Hébergement web |
 | Données relationnelles | PostgreSQL Flexible Server | Métadonnées fichiers |
 | Fichiers | Storage Account (Blob) | Upload/download |
 | Secrets | Key Vault | DATABASE_URL et secrets |
 | Configuration | App Configuration | Paramètres centralisés |
+| Entrée sécurisée | Application Gateway + WAF | Filtrage et protection HTTP(S) |
+| Haute disponibilité (bonus) | Front Door / Traffic Manager | Failover multi-région |
+| Monitoring | Azure Monitor + Alerts | Dashboard et alertes |
 | Logging optionnel | Azure Functions + Table Storage | Journalisation |
 
 ---
@@ -194,6 +202,7 @@ sequenceDiagram
 - Secrets dans Key Vault
 - Config applicative dans App Configuration
 - Aucun secret en dur dans le code
+- OAuth 2.0 via Entra ID pour l'authentification
 
 </div>
 
@@ -267,6 +276,24 @@ Etapes type : checkout -> install -> build -> deploy -> migrate.
 
 ---
 
+# Sécurité avancée, monitoring et health checks
+
+| Élément | Détail de mise en oeuvre | Statut |
+|---|---|---|
+| Monitoring avancé | Azure Monitor avec alertes (temps de réponse > 2s, taux d'erreur > 5%) + dashboard | Réalisé |
+| Custom WAF rules | Règles WAF personnalisées: rate limiting, geo-filtering, blocage d'IP | Réalisé |
+| Health endpoints | Endpoint `/health` (BDD + Storage) utilisé par les health probes App Gateway | Réalisé |
+
+<div class="pt-3 text-sm p-3 rounded" style="background: rgba(0,120,212,0.1);">
+Bonus optionnel réalisé : déploiement multi-région (2 régions Azure) avec failover via Front Door / Traffic Manager.
+</div>
+
+<div class="pt-3 text-sm opacity-80">
+Résultat : sécurité renforcée du trafic entrant, détection proactive des incidents et meilleure résilience.
+</div>
+
+---
+
 # Difficultés rencontrées et solutions
 
 | Problème | Cause | Solution |
@@ -309,6 +336,7 @@ Etapes type : checkout -> install -> build -> deploy -> migrate.
 - Le passage Function Consumption -> Premium est le principal facteur de hausse.
 - PostgreSQL devient le deuxième poste de dépense.
 - Blob Storage reste marginal dans le budget global.
+- Le déploiement multi-région (bonus optionnel) augmente le coût, mais améliore la disponibilité.
 
 </div>
 
