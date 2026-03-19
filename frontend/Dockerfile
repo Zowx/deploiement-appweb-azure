@@ -4,7 +4,7 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # Build argument for API URL (can be overridden at build time)
-ARG VITE_API_URL=https://app-cloudazure-backend-dev.azurewebsites.net/api/files
+ARG VITE_API_URL=/api/files
 ENV VITE_API_URL=$VITE_API_URL
 
 # Copy package files first for better caching
