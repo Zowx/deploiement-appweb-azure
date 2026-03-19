@@ -29,6 +29,12 @@ services:
       DATABASE_URL: postgresql://cloudazure:cloudazure123@db:5432/cloudazure?schema=public
       PORT: 3001
       NODE_ENV: development
+      # Google OAuth - provide values in production environment or via secret management
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
+      BASE_URL: "${BASE_URL}"
+      FRONTEND_URL: "${FRONTEND_URL}"
+      SESSION_SECRET: "${SESSION_SECRET}"
       # Azure services disabled for local dev - will use mock storage
       AZURE_STORAGE_ACCOUNT_NAME: ""
       AZURE_STORAGE_CONTAINER_NAME: "uploads"

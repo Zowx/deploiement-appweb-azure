@@ -30,6 +30,12 @@ services:
             DATABASE_URL: postgresql://cloudazure:cloudazure123@db:5432/cloudazure?schema=public
             PORT: 3001
             NODE_ENV: development
+            # Google OAuth (set via environment or backend/.env)
+            GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+            GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
+            BASE_URL: "${BASE_URL:-http://localhost:3001}"
+            FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
+            SESSION_SECRET: "${SESSION_SECRET:-change_this_in_dev}"
             AZURE_STORAGE_ACCOUNT_NAME: ''
             AZURE_STORAGE_CONTAINER_NAME: 'uploads'
             AZURE_KEYVAULT_NAME: ''

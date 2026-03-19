@@ -1,11 +1,15 @@
 import express from "express";
 import cors from "cors";
 import session from "express-session";
-import passport from "./services/passport.js";
-import authRouter from "./routes/auth.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+
+// Load env as early as possible so imported modules can read process.env
+dotenv.config();
+
+import passport from "./services/passport.js";
+import authRouter from "./routes/auth.js";
 import filesRouter from "./routes/files.js";
 import foldersRouter from "./routes/folders.js";
 import logsRouter from "./routes/logs.js";
@@ -15,7 +19,6 @@ import prisma from "./services/prisma.js";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { DefaultAzureCredential } from "@azure/identity";
 
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

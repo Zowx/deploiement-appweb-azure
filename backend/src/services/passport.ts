@@ -2,6 +2,16 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import prisma from "./prisma.js";
 
+// Ensure required env vars are present at module init time and provide a helpful error
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+  throw new Error(
+    "Missing required env variables for Google OAuth: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.\n" +
+      "Make sure they are set in the environment or loaded via dotenv before importing the passport service.",
+  );
+}
+
 passport.use(
   new GoogleStrategy(
     {
