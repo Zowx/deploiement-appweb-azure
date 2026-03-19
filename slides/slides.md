@@ -121,17 +121,17 @@ Objectif: une stack simple à maintenir, cohérente en TypeScript de bout en bou
 
 # Architecture 3-tiers déployée
 
-```mermaid {scale: 0.7}
+```mermaid {scale: 0.56}
 flowchart LR
-  U((Utilisateur)) -->|HTTPS| FD[Front Door / Traffic Manager]
+  U((Utilisateur)) -->|HTTPS| FD[Front Door<br/>ou Traffic Manager]
   FD -->|WAF + TLS| AGW[Application Gateway]
-  AGW -->|HTTPS| FE[Frontend App Service]
-    FE -->|API REST| BE[Backend App Service]
-    BE -->|Prisma| DB[(PostgreSQL)]
-    BE -->|SDK| BL[(Blob Storage)]
-    BE -.->|Managed Identity| KV[Key Vault]
-    BE -.->|Managed Identity| AC[App Configuration]
-    BE -->|HTTP| FN[Azure Function Logging]
+  AGW -->|HTTPS| FE[Frontend<br/>App Service]
+  FE -->|API REST| BE[Backend<br/>App Service]
+  BE -->|Prisma| DB[(PostgreSQL)]
+  BE -->|SDK| BL[(Blob Storage)]
+  BE -.->|Managed Identity| KV[Key Vault]
+  BE -.->|Managed Identity| AC[App Configuration]
+  BE -->|HTTP| FN[Azure Function<br/>Logging]
 ```
 
 <div class="pt-3 text-sm opacity-80">
