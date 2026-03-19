@@ -11,6 +11,7 @@ export interface FileData {
     name: string;
     path: string;
   };
+  ownerId?: string | null;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || "/api/files";
@@ -44,8 +45,10 @@ export function getFullFileUrl(
 
 export async function getFiles(folderId?: string | null): Promise<FileData[]> {
   const url = folderId ? `${API_URL}?folderId=${folderId}` : API_URL;
-  const response = await fetch(url);
+  const response = await fetch(url, { credentials: 'include' });
   if (!response.ok) {
+    if (response.status === 401) throw new Error("Unauthorized");
+    if (response.status === 403) throw new Error("Forbidden");
     throw new Error("Failed to fetch files");
   }
   return response.json();
@@ -85,16 +88,16 @@ export async function uploadFile(
     });
 
     xhr.open("POST", API_URL);
+    xhr.withCredentials = true;
     xhr.send(formData);
   });
 }
 
 export async function deleteFile(id: string): Promise<void> {
-  const response = await fetch(`${API_URL}/${id}`, {
-    method: "DELETE",
-  });
-
+  const response = await fetch(`${API_URL}/${id}`, { method: "DELETE", credentials: 'include' });
   if (!response.ok) {
+    if (response.status === 401) throw new Error("Unauthorized");
+    if (response.status === 403) throw new Error("Forbidden");
     throw new Error("Failed to delete file");
   }
 }
@@ -109,10 +112,13 @@ export async function moveFile(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ folderId }),
+    credentials: 'include',
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    if (response.status === 401) throw new Error("Unauthorized");
+    if (response.status === 403) throw new Error("Forbidden");
+    const error = await response.json().catch(() => ({}));
     throw new Error(error.error || "Failed to move file");
   }
 

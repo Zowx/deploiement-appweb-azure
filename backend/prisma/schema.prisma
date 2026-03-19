@@ -31,6 +31,8 @@ model File {
   mimeType  String
   folderId  String?
   folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -38,11 +40,12 @@ model File {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  googleId   String   @unique
+  id          String   @id @default(cuid())
+  googleId    String   @unique
   displayName String?
-  email      String?  @unique
-  photoUrl   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  email       String?  @unique
+  photoUrl    String?
+  files       File[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
