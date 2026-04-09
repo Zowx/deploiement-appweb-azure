@@ -65,5 +65,14 @@ jobs:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: ./frontend/dist
 
+      - name: Configure App Settings
+        run: |
+          az webapp config appsettings set \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group rg-cloudazure-dev \
+            --settings \
+              FRONTEND_URL="${{ secrets.FRONTEND_URL }}" \
+            --output none
+
       - name: Restart App Service
         run: az webapp restart --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group rg-cloudazure-dev
