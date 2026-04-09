@@ -311,6 +311,8 @@ Résultat : sécurité renforcée du trafic entrant, détection proactive des in
 | Timeout Prisma | Firewall PostgreSQL | Règle Azure adaptée |
 | CORS FE/BE | Origines non autorisées | CORS dynamique via `FRONTEND_URL` |
 | Prisma client en prod | Génération manquante | `prisma generate` en CI/CD |
+| deploiement refusé | plus de machine linux dispo pour sweden central | attendre que ce soit a nouveau dispo |
+| fichiers privés toujours visible par tous | probleme de logique | rendre possible l'ajout que apres connexion |
 
 ---
 
@@ -352,15 +354,10 @@ Résultat : sécurité renforcée du trafic entrant, détection proactive des in
 </div>
 
 ---
-
+layout: center
+class: text-center
+---
 # Démo live
-
-### Scénario
-
-1. Upload d'un fichier
-2. Création/déplacement dans un dossier
-3. Visualisation du fichier
-4. Vérification des logs
 
 ---
 layout: center
