@@ -106,7 +106,7 @@ module appGateway 'modules/appgateway.bicep' = {
     environment: environment
     projectName: projectName
     subnetId: vnet.outputs.appGatewaySubnetId
-    backendFqdn: appService.outputs.backendFqdn
+    backendFqdn: appService.outputs.frontendFqdn
   }
 }
 
@@ -130,7 +130,7 @@ module frontDoor 'modules/frontdoor.bicep' = if (enableFrontDoor) {
   params: {
     environment: environment
     projectName: projectName
-    primaryBackendFqdn: appService.outputs.backendFqdn
+    primaryBackendFqdn: appService.outputs.frontendFqdn
   }
 }
 

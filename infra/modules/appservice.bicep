@@ -60,6 +60,22 @@ resource frontendApp 'Microsoft.Web/sites@2024-04-01' = {
       alwaysOn: true
       linuxFxVersion: 'NODE|20-lts'
       appCommandLine: 'node server.cjs'
+      ipSecurityRestrictions: !empty(appGatewaySubnetId) ? [
+        {
+          vnetSubnetResourceId: appGatewaySubnetId
+          action: 'Allow'
+          priority: 100
+          name: 'AllowAppGateway'
+          description: 'Allow traffic from Application Gateway subnet'
+        }
+        {
+          ipAddress: 'Any'
+          action: 'Deny'
+          priority: 2147483647
+          name: 'DenyAll'
+          description: 'Deny all other traffic'
+        }
+      ] : []
       appSettings: [
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
@@ -164,6 +180,7 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
 output appServicePlanId string = appServicePlan.id
 output appServicePlanName string = appServicePlan.name
 output backendFqdn string = backendApp.properties.defaultHostName
+output frontendFqdn string = frontendApp.properties.defaultHostName
 output frontendAppName string = frontendApp.name
 output frontendAppUrl string = 'https://${frontendApp.properties.defaultHostName}'
 output frontendPrincipalId string = frontendApp.identity.principalId
