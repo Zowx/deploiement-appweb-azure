@@ -272,7 +272,7 @@ resource appGateway 'Microsoft.Network/applicationGateways@2024-05-01' = {
           protocol: 'Https'
           cookieBasedAffinity: 'Disabled'
           pickHostNameFromBackendAddress: true
-          requestTimeout: 30
+          requestTimeout: 60
           probe: {
             id: resourceId('Microsoft.Network/applicationGateways/probes', appGatewayName, 'healthProbe')
           }
