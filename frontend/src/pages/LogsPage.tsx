@@ -72,7 +72,7 @@ export function LogsPage() {
   };
 
   return (
-    <div className="container">
+    <div className="container logs-container">
       <div className="logs-header">
         <Link to="/" className="btn btn-secondary" title="Retour à l'accueil">
           <ArrowLeft size={16} />
@@ -162,6 +162,7 @@ export function LogsPage() {
             </p>
           </div>
         ) : (
+          <div className="logs-table-wrapper">
           <table className="logs-table">
             <thead>
               <tr>
@@ -205,6 +206,7 @@ export function LogsPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

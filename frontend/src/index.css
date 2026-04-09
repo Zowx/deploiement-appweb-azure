@@ -211,6 +211,10 @@ h1 {
 }
 
 /* Logs Page Styles */
+.container.logs-container {
+    max-width: 1200px;
+}
+
 .logs-header {
     display: flex;
     justify-content: space-between;
@@ -287,10 +291,15 @@ h1 {
     font-size: 1rem;
 }
 
+.logs-table-wrapper {
+    overflow-x: auto;
+}
+
 .logs-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.875rem;
+    table-layout: fixed;
 }
 
 .logs-table th,
@@ -305,6 +314,18 @@ h1 {
     font-weight: 600;
     color: #333;
 }
+
+.logs-table th:nth-child(1),
+.logs-table td:nth-child(1) { width: 90px; }
+
+.logs-table th:nth-child(2),
+.logs-table td:nth-child(2) { width: 110px; }
+
+.logs-table th:nth-child(4),
+.logs-table td:nth-child(4) { width: 80px; }
+
+.logs-table th:nth-child(5),
+.logs-table td:nth-child(5) { width: 150px; }
 
 .logs-table tbody tr:hover {
     background: #fafafa;
