@@ -678,7 +678,6 @@ export function FileList({
                         currentFolderId={currentFolderId}
                         onFolderCreated={onFolderCreated}
                         onRefresh={onRefresh}
-                        isAuthenticated={!!currentUser}
                     />
                 )}
             </div>

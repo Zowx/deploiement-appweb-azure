@@ -5,14 +5,12 @@ interface FileUploadProps {
   onUploadComplete: (file: FileData) => void;
   currentFolderId?: string | null;
   currentPath?: string;
-  isLoggedIn?: boolean;
 }
 
 export function FileUpload({
   onUploadComplete,
   currentFolderId,
   currentPath = "/",
-  isLoggedIn = false,
 }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);

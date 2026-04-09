@@ -5,14 +5,12 @@ interface FolderManagerProps {
   currentFolderId: string | null;
   onFolderCreated: (folder: FolderData) => void;
   onRefresh?: () => void;
-  isAuthenticated?: boolean;
 }
 
 export function FolderManager({
   currentFolderId,
   onFolderCreated,
   onRefresh,
-  isAuthenticated,
 }: FolderManagerProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
