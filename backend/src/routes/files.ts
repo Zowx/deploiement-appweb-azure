@@ -305,7 +305,7 @@ router.delete(
     try {
       const file = await prisma.file.findUnique({
         where: { id: req.params.id },
-      });
+      }) as Awaited<ReturnType<typeof prisma.file.findUnique>> & { storageKey?: string | null };
 
       if (!file) {
         res.status(404).json({ error: "File not found" });
