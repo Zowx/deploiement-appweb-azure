@@ -21,7 +21,6 @@ interface FileListProps {
     onFolderMoved?: (folderId: string) => void;
     onFolderCreated?: (folder: FolderData) => void;
     onRefresh?: () => void;
-    currentUser?: { id: string } | null;
 }
 
 function formatFileSize(bytes: number): string {
@@ -55,7 +54,6 @@ export function FileList({
     onFolderMoved,
     onFolderCreated,
     onRefresh,
-    currentUser,
 }: FileListProps) {
     const navigate = useNavigate();
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
