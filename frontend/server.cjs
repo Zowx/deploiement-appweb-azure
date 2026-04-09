@@ -59,6 +59,16 @@ app.use('/api', (req, res) => {
       'access-control-allow-credentials': 'true',
     };
 
+    // Rewrite cookie domains from backend to frontend
+    if (responseHeaders['set-cookie']) {
+      const cookies = Array.isArray(responseHeaders['set-cookie'])
+        ? responseHeaders['set-cookie']
+        : [responseHeaders['set-cookie']];
+      responseHeaders['set-cookie'] = cookies.map(c =>
+        c.replace(/Domain=[^;]+;?/gi, '')
+      );
+    }
+
     if (isSSE) {
       // SSE-specific: disable buffering and caching
       responseHeaders['cache-control'] = 'no-cache';

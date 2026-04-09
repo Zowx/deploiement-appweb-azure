@@ -71,11 +71,14 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     const folderId = req.query.folderId as string | undefined;
     const user = getUser(req);
-    // If authenticated -> return only user's private files
-    // If unauthenticated -> return only public files (ownerId IS NULL)
+    // Authenticated: show own private files + public files
+    // Unauthenticated: show only public files (ownerId IS NULL)
     const where: Record<string, any> = {};
     if (user) {
-      where.ownerId = user.id;
+      where.OR = [
+        { ownerId: user.id },
+        { ownerId: null },
+      ];
     } else {
       where.ownerId = null;
     }
@@ -273,7 +276,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
         storageKey: storageFileName,
         size,
         mimeType: mimetype,
-        folderId,
+        ...(folderId ? { folder: { connect: { id: folderId } } } : {}),
         ...(user && !isPublic ? { owner: { connect: { id: user.id } } } : {}),
       },
       include: { folder: true },

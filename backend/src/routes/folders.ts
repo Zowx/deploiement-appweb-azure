@@ -159,7 +159,7 @@ router.get("/root/contents", async (_req: Request, res: Response) => {
 });
 
 // POST create new folder
-router.post("/", ensureAuthenticated, async (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response) => {
   try {
     const { name, parentId } = req.body;
 
