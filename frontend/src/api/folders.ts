@@ -86,13 +86,14 @@ export async function getRootContents(): Promise<RootContents> {
 export async function createFolder(
   name: string,
   parentId: string | null = null,
+  isPublic: boolean = true,
 ): Promise<FolderData> {
   const response = await fetch(FOLDERS_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ name, parentId }),
+    body: JSON.stringify({ name, parentId, isPublic }),
     credentials: "include",
   });
 
