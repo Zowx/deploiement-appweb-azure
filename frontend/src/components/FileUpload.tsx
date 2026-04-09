@@ -17,7 +17,6 @@ export function FileUpload({
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [isPublic, setIsPublic] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +37,7 @@ export function FileUpload({
         file,
         setProgress,
         currentFolderId,
-        isPublic,
+        false,
       );
       onUploadComplete(uploadedFile);
       if (fileInputRef.current) {
@@ -74,39 +73,6 @@ export function FileUpload({
           className="file-input"
           disabled={uploading}
         />
-        {isLoggedIn && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              margin: "0.5rem 0",
-            }}
-          >
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isPublic}
-                onChange={(e) => setIsPublic(e.target.checked)}
-                disabled={uploading}
-              />
-              Fichier public
-            </label>
-            <span style={{ fontSize: "0.8rem", color: "#888" }}>
-              {isPublic
-                ? "(visible par tous)"
-                : "(visible uniquement par vous)"}
-            </span>
-          </div>
-        )}
         {uploading && (
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${progress}%` }} />

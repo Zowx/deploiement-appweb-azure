@@ -16,7 +16,6 @@ export function FolderManager({
 }: FolderManagerProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const handleCreateFolder = async (e: React.FormEvent) => {
@@ -28,7 +27,7 @@ export function FolderManager({
 
     try {
       setError(null);
-      const folder = await createFolder(newFolderName.trim(), currentFolderId, isPublic);
+      const folder = await createFolder(newFolderName.trim(), currentFolderId, false);
       onFolderCreated(folder);
       setNewFolderName("");
       setIsCreating(false);
@@ -66,16 +65,6 @@ export function FolderManager({
                 borderRadius: "4px",
               }}
             />
-            {isAuthenticated && (
-              <label style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.875rem" }}>
-                <input
-                  type="checkbox"
-                  checked={isPublic}
-                  onChange={(e) => setIsPublic(e.target.checked)}
-                />
-                Public
-              </label>
-            )}
             <button type="submit" className="btn btn-primary">
               Créer
             </button>

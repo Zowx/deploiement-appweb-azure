@@ -67,21 +67,14 @@ function validateFile(
 }
 
 // GET all files (optionally filtered by folder) - returns only files owned by the user
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const folderId = req.query.folderId as string | undefined;
     const user = getUser(req);
-    // Authenticated: show own private files + public files
-    // Unauthenticated: show only public files (ownerId IS NULL)
-    const where: Record<string, any> = {};
-    if (user) {
-      where.OR = [
-        { ownerId: user.id },
-        { ownerId: null },
-      ];
-    } else {
-      where.ownerId = null;
-    }
+
+    const where: Record<string, any> = {
+      ownerId: user!.id,
+    };
     if (folderId) where.folderId = folderId;
 
     const files = await prisma.file.findMany({
@@ -224,7 +217,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // POST upload file
-router.post("/", upload.single("file"), async (req: Request, res: Response) => {
+router.post("/", ensureAuthenticated, upload.single("file"), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: "No file uploaded" });
@@ -264,9 +257,8 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       await saveFileLocally(storageFileName, buffer);
     }
 
-    // Persist to database - attach owner
+    // Persist to database - always set owner to current user
     const user = getUser(req);
-    const isPublic = req.body.isPublic === "true" || req.body.isPublic === true;
     const url = `/api/files/download/${storageFileName}`;
 
     const file = await prisma.file.create({
@@ -277,7 +269,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
         size,
         mimeType: mimetype,
         ...(folderId ? { folder: { connect: { id: folderId } } } : {}),
-        ...(user && !isPublic ? { owner: { connect: { id: user.id } } } : {}),
+        ...(user ? { owner: { connect: { id: user.id } } } : {}),
       },
       include: { folder: true },
     });

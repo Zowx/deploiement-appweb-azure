@@ -144,6 +144,24 @@ export function HomePage() {
 
   useSSE(currentFolderId, sseHandlers);
 
+  if (!currentUser) {
+    return (
+      <div className="container">
+        <div className="logs-header">
+          <h1>Cloud Azure - File Manager</h1>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <AuthButton />
+          </div>
+        </div>
+        <div className="card">
+          <p style={{ textAlign: "center", fontSize: "1.1rem" }}>
+            Veuillez vous authentifier pour accéder à votre gestionnaire de fichiers.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div className="logs-header">

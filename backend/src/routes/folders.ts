@@ -10,19 +10,15 @@ function getUser(req: Request): { id: string } | undefined {
   return (req as any).user;
 }
 
-// GET all folders (public + own private)
-router.get("/", async (req: Request, res: Response) => {
+// GET all folders (returns only folders owned by the user)
+router.get("/", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = getUser(req);
-    const where: Record<string, any> = {};
-    if (user) {
-      where.OR = [{ ownerId: user.id }, { ownerId: null }];
-    } else {
-      where.ownerId = null;
-    }
 
     const folders = await prisma.folder.findMany({
-      where,
+      where: {
+        ownerId: user!.id,
+      },
       include: {
         _count: {
           select: {
@@ -43,7 +39,7 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // GET folder by ID with contents
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const folder = await prisma.folder.findUnique({
       where: { id: req.params.id },
@@ -68,9 +64,9 @@ router.get("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    // Private folder: only owner can see it
+    // Only owner can see it
     const user = getUser(req);
-    if (folder.ownerId && (!user || folder.ownerId !== user.id)) {
+    if (!user || folder.ownerId !== user.id) {
       res.status(404).json({ error: "Folder not found" });
       return;
     }
@@ -179,9 +175,9 @@ router.get("/root/contents", async (_req: Request, res: Response) => {
 });
 
 // POST create new folder
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { name, parentId, isPublic } = req.body;
+    const { name, parentId } = req.body;
     const user = getUser(req);
 
     if (!name || typeof name !== "string" || name.trim() === "") {
@@ -226,13 +222,12 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    const folderIsPublic = isPublic === true || isPublic === "true";
     const folder = await prisma.folder.create({
       data: {
         name: name.trim(),
         path,
         parentId: parentId || null,
-        ...(user && !folderIsPublic ? { ownerId: user.id } : {}),
+        ...(user ? { ownerId: user.id } : {}),
       },
       include: {
         _count: {

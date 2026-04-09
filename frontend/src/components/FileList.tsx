@@ -999,44 +999,6 @@ export function FileList({
                                         {draggedFileId === file.id && (
                                             <span style={{ marginLeft: '0.5rem', color: '#999' }}></span>
                                         )}
-                                        <div style={{ display: 'inline-block', marginLeft: 8 }}>
-                                            {file.ownerId ? (
-                                                currentUser && currentUser.id === file.ownerId ? (
-                                                    <span
-                                                        style={{
-                                                            padding: '0.15rem 0.4rem',
-                                                            background: '#e6f7ff',
-                                                            borderRadius: 4,
-                                                            fontSize: '0.75rem',
-                                                        }}
-                                                    >
-                                                        Privé
-                                                    </span>
-                                                ) : (
-                                                    <span
-                                                        style={{
-                                                            padding: '0.15rem 0.4rem',
-                                                            background: '#fff1f0',
-                                                            borderRadius: 4,
-                                                            fontSize: '0.75rem',
-                                                        }}
-                                                    >
-                                                        Privé (autre)
-                                                    </span>
-                                                )
-                                            ) : (
-                                                <span
-                                                    style={{
-                                                        padding: '0.15rem 0.4rem',
-                                                        background: '#f6ffed',
-                                                        borderRadius: 4,
-                                                        fontSize: '0.75rem',
-                                                    }}
-                                                >
-                                                    Public
-                                                </span>
-                                            )}
-                                        </div>
                                     </div>
                                     <div className='file-meta'>
                                         {formatFileSize(file.size)} • {formatDate(file.createdAt)}
