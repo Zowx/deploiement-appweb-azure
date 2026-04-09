@@ -191,7 +191,6 @@ export function HomePage() {
           currentPath={currentPath}
           currentFolderId={currentFolderId}
           parentFolderId={parentFolderId}
-          currentUser={currentUser}
           onFileDeleted={handleFileDeleted}
           onFolderDeleted={handleFolderDeleted}
           onFolderClick={handleFolderClick}
