@@ -107,6 +107,12 @@ resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPo
           exclusionManagedRuleSets: []
         }
         {
+          matchVariable: 'RequestArgNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'iss'
+          exclusionManagedRuleSets: []
+        }
+        {
           matchVariable: 'RequestCookieNames'
           selectorMatchOperator: 'Equals'
           selector: 'connect.sid'
