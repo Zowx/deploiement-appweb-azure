@@ -22,6 +22,14 @@ param notificationEmail string = 'admin@${projectName}.com'
 @description('Enable Azure Front Door (not available on Free/Student subscriptions)')
 param enableFrontDoor bool = false
 
+@secure()
+@description('Base64-encoded PFX SSL certificate for App Gateway HTTPS')
+param sslCertificateData string
+
+@secure()
+@description('Password for the PFX SSL certificate')
+param sslCertificatePassword string
+
 var resourceGroupName = 'rg-${projectName}-${environment}'
 var functionResourceGroupName = 'rg-${projectName}-func-${environment}'
 var keyVaultName = 'kv-${projectName}-${environment}'
@@ -107,6 +115,8 @@ module appGateway 'modules/appgateway.bicep' = {
     projectName: projectName
     subnetId: vnet.outputs.appGatewaySubnetId
     backendFqdn: appService.outputs.frontendFqdn
+    sslCertificateData: sslCertificateData
+    sslCertificatePassword: sslCertificatePassword
   }
 }
 
