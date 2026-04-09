@@ -1,4 +1,5 @@
 import express from "express";
+import helmet from "helmet";
 import cors from "cors";
 import session from "express-session";
 import path from "path";
@@ -60,6 +61,16 @@ function rateLimiter(
   next();
 }
 
+// Cleanup expired rate limit entries every 15 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const ip of Object.keys(rateLimitStore)) {
+    if (now > rateLimitStore[ip].resetTime) {
+      delete rateLimitStore[ip];
+    }
+  }
+}, RATE_LIMIT_WINDOW);
+
 const requiredEnvVars = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
@@ -78,6 +89,7 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
+app.use(helmet());
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || false,

@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { ensureAuthenticated } from "../services/auth.js";
 
 interface LogEntry {
   action: string;
@@ -17,7 +18,7 @@ function getFunctionConfig() {
 }
 
 // GET logs (proxy to Azure Function)
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { url, key } = getFunctionConfig();
 
@@ -33,9 +34,10 @@ router.get("/", async (req: Request, res: Response) => {
     if (req.query.date) params.append("date", String(req.query.date));
     if (req.query.action) params.append("action", String(req.query.action));
     if (req.query.limit) params.append("limit", String(req.query.limit));
-    params.append("code", key);
 
-    const response = await fetch(`${url}/api/getlogs?${params.toString()}`);
+    const response = await fetch(`${url}/api/getlogs?${params.toString()}`, {
+      headers: { "x-functions-key": key },
+    });
 
     if (!response.ok) {
       res.status(response.status).json({
@@ -53,7 +55,7 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // POST log activity (proxy to Azure Function)
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { url, key } = getFunctionConfig();
 
@@ -64,9 +66,9 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    const response = await fetch(`${url}/api/logactivity?code=${key}`, {
+    const response = await fetch(`${url}/api/logactivity`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-functions-key": key },
       body: JSON.stringify({
         ...req.body,
         userIp: req.ip || "unknown",
@@ -91,7 +93,7 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // GET stats (aggregated data for dashboard)
-router.get("/stats", async (req: Request, res: Response) => {
+router.get("/stats", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { url, key } = getFunctionConfig();
 
@@ -105,10 +107,11 @@ router.get("/stats", async (req: Request, res: Response) => {
     const params = new URLSearchParams({
       date: String(req.query.date || today),
       limit: "1000",
-      code: key,
     });
 
-    const response = await fetch(`${url}/api/getlogs?${params.toString()}`);
+    const response = await fetch(`${url}/api/getlogs?${params.toString()}`, {
+      headers: { "x-functions-key": key },
+    });
 
     if (!response.ok) {
       res.status(response.status).json({ error: "Failed to fetch stats" });

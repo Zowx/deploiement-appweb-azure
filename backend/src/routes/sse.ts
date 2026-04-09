@@ -1,9 +1,10 @@
 import { Router, Request, Response } from "express";
 import { sseService } from "../services/sse.js";
+import { ensureAuthenticated } from "../services/auth.js";
 
 const router = Router();
 
-router.get("/events", (req: Request, res: Response) => {
+router.get("/events", ensureAuthenticated, (req: Request, res: Response) => {
   const folderId = (req.query.folderId as string) || null;
   const clientId = sseService.addClient(res, folderId);
 

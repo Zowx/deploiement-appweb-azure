@@ -8,6 +8,17 @@ const PORT = process.env.PORT || 8080;
 
 const BACKEND_HOST = process.env.BACKEND_HOST || 'app-cloudazure-backend-dev.azurewebsites.net';
 
+// CORS whitelist based on FRONTEND_URL
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+function isOriginAllowed(origin) {
+  if (!origin || allowedOrigins.length === 0) return false;
+  return allowedOrigins.includes(origin);
+}
+
 // Gzip compression (skip SSE responses)
 app.use(compression({
   filter: (req, res) => {
@@ -18,13 +29,17 @@ app.use(compression({
 
 // CORS preflight handler
 app.options('/api/{*path}', (req, res) => {
-  res.set({
-    'access-control-allow-origin': req.headers.origin || '*',
+  const origin = req.headers.origin;
+  const headers = {
     'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
     'access-control-allow-headers': 'Content-Type, Authorization',
     'access-control-allow-credentials': 'true',
     'access-control-max-age': '86400',
-  });
+  };
+  if (isOriginAllowed(origin)) {
+    headers['access-control-allow-origin'] = origin;
+  }
+  res.set(headers);
   res.sendStatus(204);
 });
 
@@ -53,11 +68,14 @@ app.use('/api', (req, res) => {
   const proxyReq = https.request(options, (proxyRes) => {
     const responseHeaders = {
       ...proxyRes.headers,
-      'access-control-allow-origin': req.headers.origin || '*',
       'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
       'access-control-allow-headers': 'Content-Type, Authorization',
       'access-control-allow-credentials': 'true',
     };
+    const origin = req.headers.origin;
+    if (isOriginAllowed(origin)) {
+      responseHeaders['access-control-allow-origin'] = origin;
+    }
 
     // Rewrite cookie domains from backend to frontend
     if (responseHeaders['set-cookie']) {
