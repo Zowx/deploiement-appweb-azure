@@ -208,10 +208,11 @@ sequenceDiagram
 
 ### Key Vault + App Configuration
 
-- Secrets dans Key Vault
+- Secrets dans Key Vault et Github secrets
 - Config applicative dans App Configuration
 - Aucun secret en dur dans le code
 - OAuth 2.0 via Entra ID pour l'authentification
+- Connexion par Google
 
 </div>
 
@@ -219,7 +220,7 @@ sequenceDiagram
 
 ### Accès par identité gérée
 
-| Ressource | Rôle RBAC |
+| Ressource | Rôle |
 |---|---|
 | Blob Storage | Storage Blob Data Contributor |
 | Key Vault | Key Vault Secrets User |
@@ -287,14 +288,14 @@ Etapes type : checkout -> install -> build -> deploy -> migrate.
 
 # Sécurité avancée, monitoring et health checks
 
-| Élément | Détail de mise en oeuvre | Statut |
-|---|---|---|
-| Monitoring avancé | Azure Monitor avec alertes (temps de réponse > 2s, taux d'erreur > 5%) + dashboard | Réalisé |
-| Custom WAF rules | Règles WAF personnalisées: rate limiting, geo-filtering, blocage d'IP | Réalisé |
-| Health endpoints | Endpoint `/health` (BDD + Storage) utilisé par les health probes App Gateway | Réalisé |
+| Élément | Détail de mise en oeuvre |
+|---|---|
+| Monitoring avancé | Azure Monitor avec alertes (temps de réponse > 2s, taux d'erreur > 5%) + dashboard |
+| Custom WAF rules | Règles WAF personnalisées: rate limiting, geo-filtering, blocage d'IP |
+| Health endpoints | Endpoint `/health` (BDD + Storage) utilisé par les health probes App Gateway |
 
 <div class="pt-3 text-sm p-3 rounded" style="background: rgba(0,120,212,0.1);">
-Bonus optionnel réalisé : déploiement multi-région (2 régions Azure) avec failover via Front Door / Traffic Manager.
+Bonus optionnel réalisé : déploiement multi-région (2 régions Azure) avec failover via Front Door / Traffic Manager. (Implémenté mais pas activé)
 </div>
 
 <div class="pt-3 text-sm opacity-80">
@@ -311,8 +312,8 @@ Résultat : sécurité renforcée du trafic entrant, détection proactive des in
 | Timeout Prisma | Firewall PostgreSQL | Règle Azure adaptée |
 | CORS FE/BE | Origines non autorisées | CORS dynamique via `FRONTEND_URL` |
 | Prisma client en prod | Génération manquante | `prisma generate` en CI/CD |
-| deploiement refusé | plus de machine linux dispo pour sweden central | attendre que ce soit a nouveau dispo |
-| fichiers privés toujours visible par tous | probleme de logique | rendre possible l'ajout que apres connexion |
+| Déploiement refusé | Plus de machine linux dispo pour sweden central | Attendre que ce soit a nouveau dispo |
+| Fichiers privés toujours visible par tous | Problème de logique | Rendre possible l'ajout que après la connexion |
 
 ---
 
@@ -342,12 +343,12 @@ Résultat : sécurité renforcée du trafic entrant, détection proactive des in
 - PostgreSQL Flexible: ~32% du total
 - App Service Plan: ~19% du total
 
-### Lecture rapide
+### Résumé
 
 - Le passage Function Consumption -> Premium est le principal facteur de hausse.
 - PostgreSQL devient le deuxième poste de dépense.
 - Blob Storage reste marginal dans le budget global.
-- Le déploiement multi-région (bonus optionnel) augmente le coût, mais améliore la disponibilité.
+- Le déploiement multi-région augmente le coût, mais améliore la disponibilité. D'où sa désactivation.
 
 </div>
 
