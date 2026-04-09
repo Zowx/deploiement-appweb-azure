@@ -6,10 +6,23 @@ import { ensureAuthenticated } from "../services/auth.js";
 
 const router = Router();
 
-// GET all folders
-router.get("/", async (_req: Request, res: Response) => {
+function getUser(req: Request): { id: string } | undefined {
+  return (req as any).user;
+}
+
+// GET all folders (public + own private)
+router.get("/", async (req: Request, res: Response) => {
   try {
+    const user = getUser(req);
+    const where: Record<string, any> = {};
+    if (user) {
+      where.OR = [{ ownerId: user.id }, { ownerId: null }];
+    } else {
+      where.ownerId = null;
+    }
+
     const folders = await prisma.folder.findMany({
+      where,
       include: {
         _count: {
           select: {
@@ -51,6 +64,13 @@ router.get("/:id", async (req: Request, res: Response) => {
     });
 
     if (!folder) {
+      res.status(404).json({ error: "Folder not found" });
+      return;
+    }
+
+    // Private folder: only owner can see it
+    const user = getUser(req);
+    if (folder.ownerId && (!user || folder.ownerId !== user.id)) {
       res.status(404).json({ error: "Folder not found" });
       return;
     }
@@ -161,7 +181,8 @@ router.get("/root/contents", async (_req: Request, res: Response) => {
 // POST create new folder
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { name, parentId } = req.body;
+    const { name, parentId, isPublic } = req.body;
+    const user = getUser(req);
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       res.status(400).json({ error: "Folder name is required" });
@@ -205,11 +226,13 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
+    const folderIsPublic = isPublic === true || isPublic === "true";
     const folder = await prisma.folder.create({
       data: {
         name: name.trim(),
         path,
         parentId: parentId || null,
+        ...(user && !folderIsPublic ? { ownerId: user.id } : {}),
       },
       include: {
         _count: {
@@ -255,6 +278,13 @@ router.delete(
 
       if (!folder) {
         res.status(404).json({ error: "Folder not found" });
+        return;
+      }
+
+      // Private folder: only owner can delete
+      const user = getUser(req);
+      if (folder.ownerId && (!user || folder.ownerId !== user.id)) {
+        res.status(403).json({ error: "Forbidden" });
         return;
       }
 
