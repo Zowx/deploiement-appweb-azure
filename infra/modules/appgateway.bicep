@@ -69,6 +69,50 @@ resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPo
           ruleSetVersion: '3.2'
         }
       ]
+      exclusions: [
+        {
+          matchVariable: 'RequestArgNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'code'
+          exclusionManagedRuleSets: []
+        }
+        {
+          matchVariable: 'RequestArgNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'scope'
+          exclusionManagedRuleSets: []
+        }
+        {
+          matchVariable: 'RequestArgNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'state'
+          exclusionManagedRuleSets: []
+        }
+        {
+          matchVariable: 'RequestArgNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'authuser'
+          exclusionManagedRuleSets: []
+        }
+        {
+          matchVariable: 'RequestArgNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'prompt'
+          exclusionManagedRuleSets: []
+        }
+        {
+          matchVariable: 'RequestArgNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'hd'
+          exclusionManagedRuleSets: []
+        }
+        {
+          matchVariable: 'RequestCookieNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'connect.sid'
+          exclusionManagedRuleSets: []
+        }
+      ]
     }
     customRules: concat(rateLimitRequestsPerMinute > 0 ? [
         {
