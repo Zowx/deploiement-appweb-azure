@@ -63,7 +63,7 @@ Déploiement d'une application de gestion de fichiers sur Microsoft Azure
 
 - Architecture 3-tiers sur Azure
 - Modèle PaaS prioritaire
-- IaC avec Bicep
+- IaC (Infrastructure as Code) avec Bicep
 - CI/CD automatisé
 - Gestion sécurisée des secrets
 
@@ -107,7 +107,7 @@ Déploiement d'une application de gestion de fichiers sur Microsoft Azure
 - PostgreSQL + Blob Storage
 - Key Vault + App Config
 - Microsoft Entra ID (OAuth 2.0)
-- Bicep + GitHub Actions + OIDC
+- Bicep + GitHub Actions + OIDC (OpenID Connect)
 
 </div>
 
