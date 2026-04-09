@@ -49,6 +49,10 @@ param baseUrl string = ''
 @description('Frontend URL (for CORS and post-login redirect)')
 param frontendUrl string = ''
 
+@secure()
+@description('Azure Function key for logging')
+param azureFunctionKey string = ''
+
 var appServicePlanName = 'asp-${projectName}-${environment}'
 var frontendAppName = 'app-${projectName}-frontend-${environment}'
 var backendAppName = 'app-${projectName}-backend-${environment}'
@@ -212,6 +216,10 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
         {
           name: 'FRONTEND_URL'
           value: frontendUrl
+        }
+        {
+          name: 'AZURE_FUNCTION_KEY'
+          value: azureFunctionKey
         }
       ]
     }

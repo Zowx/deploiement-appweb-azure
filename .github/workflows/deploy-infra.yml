@@ -23,6 +23,7 @@ env:
   SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
   BASE_URL: ${{ secrets.BASE_URL }}
   FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+  AZURE_FUNCTION_KEY: ${{ secrets.AZURE_FUNCTION_KEY }}
 
 jobs:
   deploy:

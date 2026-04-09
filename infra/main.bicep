@@ -48,6 +48,10 @@ param baseUrl string
 @description('Frontend URL (for CORS and post-login redirect)')
 param frontendUrl string
 
+@secure()
+@description('Azure Function key for logging')
+param azureFunctionKey string
+
 var resourceGroupName = 'rg-${projectName}-${environment}'
 var functionResourceGroupName = 'rg-${projectName}-func-${environment}'
 var keyVaultName = 'kv-${projectName}-${environment}'
@@ -114,6 +118,7 @@ module appService 'modules/appservice.bicep' = {
     sessionSecret: sessionSecret
     baseUrl: baseUrl
     frontendUrl: frontendUrl
+    azureFunctionKey: azureFunctionKey
   }
 }
 
