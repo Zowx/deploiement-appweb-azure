@@ -135,8 +135,9 @@ async function serveFileContent(
 }
 
 // GET file content by ID (secure, non-guessable)
-router.get("/content/:id", async (req: Request, res: Response) => {
+router.get("/content/:id", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const user = getUser(req);
     const fileMetadata = await prisma.file.findUnique({
       where: { id: req.params.id },
     });
@@ -146,12 +147,9 @@ router.get("/content/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    const user = getUser(req);
-    if (fileMetadata.ownerId) {
-      if (!user || fileMetadata.ownerId !== user.id) {
-        res.status(403).json({ error: "Forbidden" });
-        return;
-      }
+    if (!user || fileMetadata.ownerId !== user.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
     }
 
     await serveFileContent(fileMetadata, req, res);
@@ -162,8 +160,9 @@ router.get("/content/:id", async (req: Request, res: Response) => {
 });
 
 // Legacy: GET file by filename (kept for backward compatibility with existing DB URLs)
-router.get("/download/:fileName", async (req: Request, res: Response) => {
+router.get("/download/:fileName", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const user = getUser(req);
     const { fileName } = req.params;
 
     const fileMetadata = await prisma.file.findFirst({
@@ -175,12 +174,9 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
       return;
     }
 
-    const user = getUser(req);
-    if (fileMetadata.ownerId) {
-      if (!user || fileMetadata.ownerId !== user.id) {
-        res.status(403).json({ error: "Forbidden" });
-        return;
-      }
+    if (!user || fileMetadata.ownerId !== user.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
     }
 
     await serveFileContent(fileMetadata, req, res);
@@ -191,7 +187,7 @@ router.get("/download/:fileName", async (req: Request, res: Response) => {
 });
 
 // GET single file
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = getUser(req);
     const file = await prisma.file.findUnique({
@@ -202,11 +198,9 @@ router.get("/:id", async (req: Request, res: Response) => {
       res.status(404).json({ error: "File not found" });
       return;
     }
-    if (file.ownerId) {
-      if (!user || file.ownerId !== user.id) {
-        res.status(403).json({ error: "Forbidden" });
-        return;
-      }
+    if (!user || file.ownerId !== user.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
     }
     loggingService.logDownload(file.id, file.name, req);
     res.json(withOwnedFlag(file, user));

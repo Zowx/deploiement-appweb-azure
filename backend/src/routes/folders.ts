@@ -41,11 +41,16 @@ router.get("/", ensureAuthenticated, async (req: Request, res: Response) => {
 // GET folder by ID with contents
 router.get("/:id", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const user = getUser(req);
+
     const folder = await prisma.folder.findUnique({
       where: { id: req.params.id },
       include: {
-        files: true,
+        files: {
+          where: { ownerId: user!.id },
+        },
         children: {
+          where: { ownerId: user!.id },
           include: {
             _count: {
               select: {
@@ -65,8 +70,7 @@ router.get("/:id", ensureAuthenticated, async (req: Request, res: Response) => {
     }
 
     // Only owner can see it
-    const user = getUser(req);
-    if (!user || folder.ownerId !== user.id) {
+    if (folder.ownerId !== user!.id) {
       res.status(404).json({ error: "Folder not found" });
       return;
     }
@@ -79,8 +83,10 @@ router.get("/:id", ensureAuthenticated, async (req: Request, res: Response) => {
 });
 
 // GET folder contents (files and subfolders) by path
-router.get("/path/*", async (req: Request, res: Response) => {
+router.get("/path/*", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const user = getUser(req);
+
     // Extract the path from the URL (everything after /path/)
     const rawPath = (req.params[0] || "").replace(/\/$/, "");
 
@@ -97,11 +103,13 @@ router.get("/path/*", async (req: Request, res: Response) => {
       where: { path: folderPath },
       include: {
         files: {
+          where: { ownerId: user!.id },
           orderBy: {
             name: "asc",
           },
         },
         children: {
+          where: { ownerId: user!.id },
           include: {
             _count: {
               select: {
@@ -123,6 +131,12 @@ router.get("/path/*", async (req: Request, res: Response) => {
       return;
     }
 
+    // Only owner can access this folder
+    if (folder.ownerId !== user!.id) {
+      res.status(404).json({ error: "Folder not found" });
+      return;
+    }
+
     res.json(folder);
   } catch (error) {
     console.error("[FOLDERS] GET /path/* failed:", (error as Error).message);
@@ -131,12 +145,15 @@ router.get("/path/*", async (req: Request, res: Response) => {
 });
 
 // GET root contents (files and folders at root level)
-router.get("/root/contents", async (_req: Request, res: Response) => {
+router.get("/root/contents", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const user = getUser(req);
+
     const [rootFiles, rootFolders] = await Promise.all([
       prisma.file.findMany({
         where: {
           folderId: null,
+          ownerId: user!.id,
         },
         orderBy: {
           name: "asc",
@@ -145,6 +162,7 @@ router.get("/root/contents", async (_req: Request, res: Response) => {
       prisma.folder.findMany({
         where: {
           parentId: null,
+          ownerId: user!.id,
         },
         include: {
           _count: {
@@ -276,9 +294,9 @@ router.delete(
         return;
       }
 
-      // Private folder: only owner can delete
+      // Only owner can delete
       const user = getUser(req);
-      if (folder.ownerId && (!user || folder.ownerId !== user.id)) {
+      if (!user || folder.ownerId !== user.id) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -337,6 +355,7 @@ router.patch(
         return;
       }
 
+      const user = getUser(req);
       const folder = await prisma.folder.findUnique({
         where: { id: req.params.id },
         include: {
@@ -347,6 +366,11 @@ router.patch(
 
       if (!folder) {
         res.status(404).json({ error: "Folder not found" });
+        return;
+      }
+
+      if (!user || folder.ownerId !== user.id) {
+        res.status(403).json({ error: "Forbidden" });
         return;
       }
 
@@ -426,6 +450,7 @@ router.patch(
   async (req: Request, res: Response) => {
     try {
       const { parentId } = req.body;
+      const user = getUser(req);
 
       const folder = await prisma.folder.findUnique({
         where: { id: req.params.id },
@@ -437,6 +462,11 @@ router.patch(
 
       if (!folder) {
         res.status(404).json({ error: "Folder not found" });
+        return;
+      }
+
+      if (!user || folder.ownerId !== user.id) {
+        res.status(403).json({ error: "Forbidden" });
         return;
       }
 
