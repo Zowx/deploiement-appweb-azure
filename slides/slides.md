@@ -323,15 +323,15 @@ Résultat : sécurité renforcée du trafic entrant, détection proactive des in
 
 <div>
 
-| Service | Dev | Prod |
-|---|---:|---:|
-| App Service | ~13 EUR | ~70 EUR |
-| PostgreSQL Flexible | ~15 EUR | ~120 EUR |
-| Blob Storage | ~1 EUR | ~5 EUR |
-| Key Vault + App Config | ~0 EUR | ~0-3 EUR |
-| Azure Function | ~0 EUR | ~150 EUR |
-| App Gateway | - | ~30 EUR |
-| **Total** | **~30 EUR** | **~375 EUR** |
+| Service | Prod |
+|---|---:|
+| App Service | ~70 EUR |
+| PostgreSQL Flexible | ~120 EUR |
+| Blob Storage | ~5 EUR |
+| Key Vault + App Config | ~0-3 EUR |
+| Azure Function | ~150 EUR |
+| App Gateway + WAF | ~90 EUR |
+| **Total** | **~440 EUR** |
 
 </div>
 
@@ -339,14 +339,15 @@ Résultat : sécurité renforcée du trafic entrant, détection proactive des in
 
 ### Postes les plus chers en production
 
-- Azure Function Premium: ~40% du total
-- PostgreSQL Flexible: ~32% du total
-- App Service Plan: ~19% du total
+- Azure Function Premium: ~34% du total
+- PostgreSQL Flexible: ~27% du total
+- App Gateway + WAF: ~21% du total
 
 ### Résumé
 
 - Le passage Function Consumption -> Premium est le principal facteur de hausse.
-- PostgreSQL devient le deuxième poste de dépense.
+- Le couple App Gateway + WAF devient un poste de coût majeur.
+- PostgreSQL reste le deuxième poste de dépense.
 - Blob Storage reste marginal dans le budget global.
 - Le déploiement multi-région augmente le coût, mais améliore la disponibilité. D'où sa désactivation.
 
