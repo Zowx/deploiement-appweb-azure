@@ -238,12 +238,17 @@ sequenceDiagram
 infra/
 ├── main.bicep
 ├── modules/
-│   ├── appservice.bicep
-│   ├── database.bicep
-│   ├── storage.bicep
-│   ├── keyvault.bicep
-│   ├── appconfig.bicep
-│   └── functionapp.bicep
+│   ├── appservice.bicep      # App Service Plan + 2 Web Apps
+│   ├── database.bicep        # PostgreSQL Flexible Server
+│   ├── storage.bicep         # Storage Account + Blob
+│   ├── keyvault.bicep        # Key Vault + RBAC
+│   ├── appconfig.bicep       # App Configuration
+│   ├── functionapp.bicep     # Azure Function (Consumption)
+│   ├── vnet.bicep            # VNet + Subnet + NSG
+│   ├── appgateway.bicep      # Application Gateway WAF_v2
+│   ├── autoscale.bicep       # Autoscaling CPU (1-3)
+│   ├── monitoring.bicep      # Azure Monitor + Alertes
+│   └── frontdoor.bicep       # Front Door (conditionnel)
 └── parameters/
     ├── dev.bicepparam
     └── prod.bicepparam

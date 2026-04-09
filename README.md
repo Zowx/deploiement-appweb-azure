@@ -30,9 +30,10 @@ Application web complète déployée sur Microsoft Azure suivant une architectur
 
 | Composant | URL |
 |-----------|-----|
-| **Frontend** | https://app-cloudazure-frontend-dev.azurewebsites.net |
-| **Frontend - Logs** | https://app-cloudazure-frontend-dev.azurewebsites.net/logs |
-| **Backend API** | https://app-cloudazure-backend-dev.azurewebsites.net |
+| **Application (via App Gateway)** | http://appgw-cloudazure-dev.swedencentral.cloudapp.azure.com |
+| **Logs (via App Gateway)** | http://appgw-cloudazure-dev.swedencentral.cloudapp.azure.com/logs |
+| **Frontend (accès direct bloqué)** | https://app-cloudazure-frontend-dev.azurewebsites.net (403) |
+| **Backend API (accès direct bloqué)** | https://app-cloudazure-backend-dev.azurewebsites.net (403) |
 | **Azure Function** | https://func-cloudazure-logging-dev.azurewebsites.net |
 
 ### Fonctionnalités disponibles
@@ -323,7 +324,7 @@ infra/
 - Isolation réseau des applications
 
 #### `appgateway.bicep` - WAF & Reverse Proxy- SKU: WAF_v2, capacity 1
-- Backend pool: FQDN du backend App Service
+- Backend pool: FQDN du Frontend App Service (qui reverse-proxy vers le Backend)
 - HTTP Settings: HTTPS 443, pickHostNameFromBackendAddress
 - Listener: HTTP port 80
 - Health probe: /health sur backend (vérifie connectivité BD + Storage)
@@ -734,7 +735,7 @@ Application Gateway agit comme reverse proxy avec Web Application Firewall inté
 **Configuration :**
 - **SKU :** WAF_v2 (seul tier supportant WAF)
 - **Capacity :** 1 (scaling automatique via autoscale)
-- **Backend Pool :** FQDN du Backend App Service
+- **Backend Pool :** FQDN du Frontend App Service (qui reverse-proxy `/api/*` vers le Backend)
 - **HTTP Settings :**
   - Protocol: HTTPS
   - Port: 443
@@ -845,9 +846,12 @@ HTTP/200 OK
 
 ---
 
-### 2.6 Restriction d'accès Backend
+### 2.6 Restriction d'accès Frontend & Backend
 
-Le Backend App Service refuse tout accès direct d'Internet, forcing les clients via Application Gateway.
+Le Frontend et le Backend App Service refusent tout accès direct d'Internet. Le trafic doit passer par l'Application Gateway.
+
+- **Frontend** : Accès autorisé uniquement depuis le subnet App Gateway (IP restrictions)
+- **Backend** : Accès autorisé uniquement depuis le subnet App Gateway + AzureCloud (pour le reverse proxy du Frontend)
 
 Voir la section Difficultés (point 11) pour les détails d'implémentation.
 
@@ -1109,7 +1113,6 @@ flowchart TB
 ```
 cloud-azure/
 ├── README.md                    # Documentation et rapport technique
-├── PLAN.md                      # Plan de développement initial
 ├── Makefile                     # Commandes Docker simplifiées
 ├── docker-compose.yml           # Configuration Docker dev
 ├── docker-compose.dev.yml       # Configuration Docker dev (hot reload)
