@@ -31,6 +31,24 @@ param databaseServerFqdn string = ''
 @description('Azure Function URL for logging')
 param functionAppUrl string = ''
 
+@secure()
+@description('Google OAuth Client ID')
+param googleClientId string = ''
+
+@secure()
+@description('Google OAuth Client Secret')
+param googleClientSecret string = ''
+
+@secure()
+@description('Session secret for express-session')
+param sessionSecret string = ''
+
+@description('Backend base URL (for OAuth callback)')
+param baseUrl string = ''
+
+@description('Frontend URL (for CORS and post-login redirect)')
+param frontendUrl string = ''
+
 var appServicePlanName = 'asp-${projectName}-${environment}'
 var frontendAppName = 'app-${projectName}-frontend-${environment}'
 var backendAppName = 'app-${projectName}-backend-${environment}'
@@ -84,6 +102,10 @@ resource frontendApp 'Microsoft.Web/sites@2024-04-01' = {
         {
           name: 'BACKEND_HOST'
           value: '${backendAppName}.azurewebsites.net'
+        }
+        {
+          name: 'FRONTEND_URL'
+          value: frontendUrl
         }
       ]
     }
@@ -170,6 +192,26 @@ resource backendApp 'Microsoft.Web/sites@2024-04-01' = {
         {
           name: 'DATABASE_URL'
           value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=database-connection-string)'
+        }
+        {
+          name: 'GOOGLE_CLIENT_ID'
+          value: googleClientId
+        }
+        {
+          name: 'GOOGLE_CLIENT_SECRET'
+          value: googleClientSecret
+        }
+        {
+          name: 'SESSION_SECRET'
+          value: sessionSecret
+        }
+        {
+          name: 'BASE_URL'
+          value: baseUrl
+        }
+        {
+          name: 'FRONTEND_URL'
+          value: frontendUrl
         }
       ]
     }

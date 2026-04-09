@@ -30,6 +30,24 @@ param sslCertificateData string
 @description('Password for the PFX SSL certificate')
 param sslCertificatePassword string
 
+@secure()
+@description('Google OAuth Client ID')
+param googleClientId string
+
+@secure()
+@description('Google OAuth Client Secret')
+param googleClientSecret string
+
+@secure()
+@description('Session secret for express-session')
+param sessionSecret string
+
+@description('Backend base URL (for OAuth callback)')
+param baseUrl string
+
+@description('Frontend URL (for CORS and post-login redirect)')
+param frontendUrl string
+
 var resourceGroupName = 'rg-${projectName}-${environment}'
 var functionResourceGroupName = 'rg-${projectName}-func-${environment}'
 var keyVaultName = 'kv-${projectName}-${environment}'
@@ -91,6 +109,11 @@ module appService 'modules/appservice.bicep' = {
     databaseServerFqdn: database.outputs.serverFqdn
     functionAppUrl: functionAppUrl
     appGatewaySubnetId: vnet.outputs.appGatewaySubnetId
+    googleClientId: googleClientId
+    googleClientSecret: googleClientSecret
+    sessionSecret: sessionSecret
+    baseUrl: baseUrl
+    frontendUrl: frontendUrl
   }
 }
 
