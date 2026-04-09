@@ -355,7 +355,7 @@ Résultat : sécurité renforcée du trafic entrant, détection proactive des in
 
 # Démo live
 
-### Scénario (3 minutes)
+### Scénario
 
 1. Upload d'un fichier
 2. Création/déplacement dans un dossier
