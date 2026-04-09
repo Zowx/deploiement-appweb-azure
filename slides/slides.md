@@ -157,6 +157,7 @@ Choix du groupe : App Service pour livrer vite, avec une complexité opérationn
 
 # Services Azure utilisés
 
+
 | Besoin | Service Azure | Rôle |
 |---|---|---|
 | Authentification | Microsoft Entra ID (OAuth 2.0) | Connexion sécurisée |
@@ -164,6 +165,14 @@ Choix du groupe : App Service pour livrer vite, avec une complexité opérationn
 | Données relationnelles | PostgreSQL Flexible Server | Métadonnées fichiers |
 | Fichiers | Storage Account (Blob) | Upload/download |
 | Secrets | Key Vault | DATABASE_URL et secrets |
+
+---
+
+# Services Azure utilisés 
+
+
+| Besoin | Service Azure | Rôle |
+|---|---|---|
 | Configuration | App Configuration | Paramètres centralisés |
 | Entrée sécurisée | Application Gateway + WAF | Filtrage et protection HTTP(S) |
 | Haute disponibilité (bonus) | Front Door / Traffic Manager | Failover multi-région |
@@ -352,11 +361,6 @@ Résultat : sécurité renforcée du trafic entrant, détection proactive des in
 2. Création/déplacement dans un dossier
 3. Visualisation du fichier
 4. Vérification des logs
-
-### Plan B
-
-- Captures / enregistrement court en secours
-- Endpoint backend testé en direct si l'UI est lente
 
 ---
 layout: center
