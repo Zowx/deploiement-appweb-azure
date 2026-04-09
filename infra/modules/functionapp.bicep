@@ -92,6 +92,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'STORAGE_CONNECTION_STRING'
           value: storageConnectionString
         }
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: '1'
+        }
       ]
     }
   }
